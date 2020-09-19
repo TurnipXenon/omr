@@ -43,6 +43,8 @@ create_jitbuilder_test(pow2            cpp/samples/Pow2.cpp)
 create_jitbuilder_test(simple          cpp/samples/Simple.cpp)
 create_jitbuilder_test(worklist        cpp/samples/Worklist.cpp)
 
+create_jitbuilder_test(simpleJava      java/samples/Simple.java)
+
 # Extended JitBuilder Tests: These may not run properly on all platforms
 # Opt in by setting OMR_JITBUILDER_TEST_EXTENDED
 if(OMR_JITBUILDER_TEST_EXTENDED)
