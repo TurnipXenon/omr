@@ -63,6 +63,7 @@ if(OMR_JITBUILDER_TEST_EXTENDED)
 	create_jitbuilder_test(toiltype          cpp/samples/ToIlType.cpp)
 	create_jitbuilder_test(union             cpp/samples/Union.cpp)
 	create_jitbuilder_test(vmregister        cpp/samples/VMRegister.cpp)
+	create_jitbuilder_test(add               cpp/samples/add.cpp)
 endif()
 
 # Experimental Tests: These are still on the experimental side
