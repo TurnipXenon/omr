@@ -23,7 +23,7 @@
 ###############################################################################
 
 """
-A module for generating the JitBuilder C++ client API.
+A module for generating the JitBuilder Java client API.
 
 By convention, functions in this module that start with "generate_"
 or "get_" return generated code as a string. Functions that start with
@@ -148,7 +148,6 @@ class JavaGenerator:
                                              }
 
         # List of files to be included in the client API implementation.
-        # todo(Allan): how to get java packages
         self.impl_include_files = self.gen_api_impl_includes(api.classes(), headerdir)
 
         # Classes that have extra APIs, not covered in the main description
@@ -184,7 +183,7 @@ class JavaGenerator:
         """.format(datetime.datetime.now().year)
 
 
-    def get_common_system_includes(self):
+    def get_common_system_imports(self):
         return ["stdint.h", "stddef.h"]
 
     def gen_api_impl_includes(self, classes_desc, api_headers_dir):
@@ -199,12 +198,10 @@ class JavaGenerator:
         in the generated code.
         """
         files = [os.path.join("ilgen", c.name() + ";") for c in classes_desc]
-        files += [os.path.join(api_headers_dir, "Macros.hpp")]
-        files += [os.path.join(api_headers_dir, c.name() + ".hpp") for c in classes_desc]
         return files
 
     def generate_import(self, path):
-        """Returns an #include directive for a given path."""
+        """Returns an import directive for a given path."""
         return 'import {};\n'.format(path)
 
     def get_class_name(self, c):
@@ -214,7 +211,7 @@ class JavaGenerator:
         If the class is a nested class, then the name is prefixed with name
         of all containing classes, separated by the scope resolution operator.
         """
-        return "::".join(c.containing_classes() + [c.name()])
+        return c.name()
 
     def get_client_class_name(self, c):
         """
@@ -223,18 +220,12 @@ class JavaGenerator:
         """
         return self.get_class_name(c)
 
-    def get_impl_class_name(self, c):
-        """
-        Returns the name of a given class in the JitBuilder implementation,
-        prefixed with the name of all containing classes.
-        """
-        return "TR::{}".format(self.get_class_name(c))
-
     def get_client_type(self, t, namespace=""):
         """
         Returns the Java type to be used in the client API implementation
         for a given type name, prefixing with a given namespace if needed.
         """
+        # todo: consider remove
         return "{ns}{t} ".format(ns=namespace,t=self.get_client_class_name(t.as_class())) if t.is_class() else self.java_client_type_map[t.name()]
 
     def get_impl_type(self, c):
@@ -254,31 +245,15 @@ class JavaGenerator:
         implementation class `c`.
         """
         b = c.base()
-        v = v if b.name() == c.name() else self.generate_static_cast(self.get_impl_type(b.as_type()), v)
-        return self.generate_static_cast(self.get_impl_type(c.as_type()),v)
-
-    def to_opaque_cast(self, v, from_c):
-        """
-        Constructs a cast of the value `v` from the type of the
-        implementation class `from_c` to an opaque pointer type.
-        """
-        b = from_c.base()
-        v = v if b.name() == from_c.name() else self.generate_static_cast(self.get_impl_type(b.as_type()), v)
-        return self.generate_static_cast("void *", v)
-
-    def to_client_cast(self, c, v):
-        """
-        Constructs a cast of the value `v` to the type of the
-        client API class `c`.
-        """
-        return self.generate_static_cast(self.get_client_type(c.as_type()), v)
+        v = v
+        return v
 
     def grab_impl(self, v, t):
         """
         Constructs an expression that grabs the implementation object
         from a client API object `v` and with type name `t`.
         """
-        return self.to_impl_cast(t.as_class(), "{v} != NULL ? {v}._impl : 0L".format(v=v)) if t.is_class() else v
+        return self.to_impl_cast(t.as_class(), "({v} != null ? {v}._impl : 0L)".format(v=v)) if t.is_class() else v
 
     def generate_parm(self, parm_desc, namespace="", is_client=True):
         """
@@ -286,9 +261,8 @@ class JavaGenerator:
         The parameter declaration is usable in a function declaration.
         """
         fmt = "{t}{b} {n}"
-        # fmt = "{t} {n}" if parm_desc.is_in_out() or parm_desc.is_array() else "{t} {n}"
         t = parm_desc.type()
-        t = self.get_client_type(t, namespace) if is_client else self.get_impl_type(t)
+        t = self.get_client_type(t, namespace)
         t = t.strip() # todo(Allan): investigate better ways
         b = "[]" if parm_desc.can_be_vararg() else ""
         return fmt.format(t=t,n=parm_desc.name(),b=b)
@@ -316,7 +290,7 @@ class JavaGenerator:
         """
         n = parm_desc.name()
         t = parm_desc.type()
-        return (n + "Arg") if parm_desc.is_in_out() or parm_desc.is_array() else self.grab_impl(n,t)
+        return "transformArray({n})".format(n=n) if parm_desc.is_array() else self.grab_impl(n,t)
 
     def generate_arg_list(self, parms_desc):
         """
@@ -327,157 +301,12 @@ class JavaGenerator:
         """
         return ", ".join([ self.generate_arg(a) for a in parms_desc ])
 
-    def callback_thunk_name(self, class_desc, callback_desc):
-        """
-        Produces the name of a callback thunk.
-
-        Thunks are used for setting callbacks to the C++ client API.
-        A thunk simply calls the corresponding client API service on
-        the given client object.
-        """
-        return "{cname}Callback_{callback}".format(cname=class_desc.name(), callback=callback_desc.name())
-
     def impl_getter_name(self, class_desc):
         """
         Produces the name of the callback that, given a client object,
         returns the corresponding JitBuilder implementation of the object.
         """
         return "getImpl_{}".format(class_desc.name())
-
-    def get_allocator_name(self, class_desc):
-        """Produces the name of an API client object allocator."""
-        return "allocate" + self.get_class_name(class_desc).replace("::", "")
-
-    # header utilities ###################################################
-
-    def generate_field_decl(self, field, with_visibility = True):
-        """
-        Produces the declaration of a client API field from
-        its description, specifying its visibility as required.
-        """
-        t = self.get_client_type(field.type())
-        n = field.name()
-        v = "public: " if with_visibility else ""
-        return "{visibility}{type} {name};\n".format(visibility=v, type=t, name=n)
-
-    def generate_class_service_decl(self, service,is_callback=False):
-        """
-        Produces the declaration for a client API class service
-        from its description.
-        """
-        vis = service.visibility() + ": "
-        static = "static " if service.is_static() else ""
-        qual = ("virtual " if is_callback else "") + static
-        ret = self.get_client_type(service.return_type())
-        name = service.name()
-        parms = self.generate_parm_list(service.parameters())
-
-        decl = "{visibility}{qualifier}{rtype} {name}({parms});\n".format(visibility=vis, qualifier=qual, rtype=ret, name=name, parms=parms)
-        if service.is_vararg():
-            parms = self.generate_vararg_parm_list(service.parameters())
-            decl = decl + "{visibility}{qualifier}{rtype} {name}({parms});\n".format(visibility=vis,qualifier=qual,rtype=ret,name=name,parms=parms)
-
-        return decl
-
-    def generate_ctor_decl(self, ctor_desc, class_name):
-        """
-        Produces the declaration of a client API class constructor
-        from its description and the name of its class.
-        """
-        v = ctor_desc.visibility() + ": "
-        parms = self.generate_parm_list(ctor_desc.parameters())
-        decls = "{visibility}{name}({parms});\n".format(visibility=v, name=class_name, parms=parms)
-        return decls
-
-    def generate_dtor_decl(self, class_desc):
-        """
-        Produces the declaration of client API class destructor
-        from the class's name.
-        """
-        return "public: ~{cname}();\n".format(cname=class_desc.name())
-
-    def generate_allocator_decl(self, class_desc):
-        """Produces the declaration of a client API object allocator."""
-        return 'extern "C" void * {alloc}(void * impl);\n'.format(alloc=self.get_allocator_name(class_desc))
-
-    def write_allocator_decl(self, writer, class_desc):
-        """
-        Write the allocator declarations for a given client API
-        class and its contained classes.
-        """
-        for c in class_desc.inner_classes():
-            self.write_allocator_decl(writer, c)
-        writer.write(self.generate_allocator_decl(class_desc))
-
-    def write_class_def(self, writer, class_desc):
-        """Write the definition of a client API class from its description."""
-
-        name = class_desc.name()
-        has_extras = name in self.classes_with_extras
-
-        inherit = ": public {parent}".format(parent=self.get_class_name(class_desc.parent())) if class_desc.has_parent() else ""
-        writer.write("class {name}{inherit} {{\n".format(name=name,inherit=inherit))
-        writer.indent()
-
-        # write nested classes
-        writer.write("public:\n")
-        for c in class_desc.inner_classes():
-            self.write_class_def(writer, c)
-
-        # write fields
-        for field in class_desc.fields():
-            decl = self.generate_field_decl(field)
-            writer.write(decl)
-
-        # write needed impl field
-        if not class_desc.has_parent():
-            writer.write("public: void* _impl;\n")
-
-        for ctor in class_desc.constructors():
-            decls = self.generate_ctor_decl(ctor, name)
-            writer.write(decls)
-
-        # write impl constructor
-        writer.write("public: explicit {name}(void * impl);\n".format(name=name))
-
-        # write impl init service delcaration
-        writer.write("protected: void initializeFromImpl(void * impl);\n")
-
-        dtor_decl = self.generate_dtor_decl(class_desc)
-        writer.write(dtor_decl)
-
-        for callback in class_desc.callbacks():
-            # check if one parameter is in-out
-            param_is_in_out = False
-            for parm in callback.parameters():
-                if parm.is_in_out():
-                    param_is_in_out = True
-                    break
-
-            if param_is_in_out:
-                continue
-
-            decl = self.generate_class_service_decl(callback, is_callback=True)
-            writer.write(decl)
-
-        for service in class_desc.services():
-            param_is_in_out = False
-            for parm in service.parameters():
-                if parm.is_in_out():
-                    param_is_in_out = True
-                    break
-
-            if param_is_in_out:
-                continue
-
-            decl = self.generate_class_service_decl(service)
-            writer.write(decl)
-
-        if has_extras:
-            writer.write(self.generate_import('{}ExtrasInsideClass.hpp'.format(class_desc.name())))
-
-        writer.outdent()
-        writer.write('};\n')
 
     # source utilities ###################################################
 
@@ -511,8 +340,6 @@ class JavaGenerator:
 
         writer.write("public {name}({parms}){inherit} {{\n".format(cname=full_name, name=name, parms=parms, inherit=inherit))
         writer.indent()
-        for parm in ctor_desc.parameters():
-            self.write_arg_setup(writer, parm)
         args = self.generate_arg_list(ctor_desc.parameters())
         writer.write("_impl = new{name}({args});\n".format(name=name, args=args))
         writer.write("impl_initializeFromImpl(_impl);\n")
@@ -525,101 +352,6 @@ class JavaGenerator:
         # writer.write("initializeFromImpl({});\n".format(self.to_opaque_cast("impl",class_desc)))
         writer.outdent()
         writer.write("}\n")
-
-    def write_impl_ctor_impl(self, writer, class_desc):
-        """
-        Writes the implementation of the special client API class
-        constructor that takes a pointer to an implementation object.
-
-        The special constructor only has one parameter: an opaque pointer
-        to an implementation object. It simply sets itself as the client
-        object corresponding to the passed-in implementation object and
-        calls the common initialization function. This is the constructor
-        that constructors of derived client API classes should invoke.
-        """
-        name = class_desc.name()
-        full_name = self.get_class_name(class_desc)
-        inherit = ": {parent}((void *)NULL)".format(parent=self.get_class_name(class_desc.parent())) if class_desc.has_parent() else ""
-
-        writer.write("{cname}::{name}(void * impl){inherit} {{\n".format(cname=full_name, name=name, inherit=inherit))
-        writer.indent()
-        writer.write("if (impl != NULL) {\n")
-        writer.indent()
-        writer.write("{impl_cast}->setClient(this);\n".format(impl_cast=self.to_impl_cast(class_desc,"impl")));
-
-        impl = "impl" if not class_desc.has_parent() else self.to_opaque_cast("static_cast<{}>(impl)".format(self.get_impl_type(class_desc.as_type())),class_desc)
-        writer.write("initializeFromImpl({});\n".format(impl))
-
-        writer.outdent()
-        writer.write("}\n")
-        writer.outdent()
-        writer.write("}\n")
-
-    def write_impl_initializer(self, writer, class_desc):
-        """
-        Writes the implementation of the client API class common
-        initialization function from the description of a class.
-
-        The common initialization function is called by all client
-        API class constructors to initialize the class's fields,
-        including the private pointer to the corresponding
-        implementation object. It is also used to set any callbacks
-        to the client on the implementation object.
-        """
-        full_name = self.get_class_name(class_desc)
-        impl_cast = self.to_impl_cast(class_desc,"_impl")
-
-        writer.write("void {cname}::initializeFromImpl(void * impl) {{\n".format(cname=full_name))
-        writer.indent()
-
-        if class_desc.has_parent():
-            writer.write("{parent}::initializeFromImpl(impl);\n".format(parent=self.get_class_name(class_desc.parent())))
-        else:
-            writer.write("_impl = impl;\n")
-
-        for field in class_desc.fields():
-            fmt = "GET_CLIENT_OBJECT(clientObj_{fname}, {ftype}, {impl_cast}->{fname});\n"
-            writer.write(fmt.format(fname=field.name(), ftype=field.type().name(), impl_cast=impl_cast))
-            writer.write("{fname} = clientObj_{fname};\n".format(fname=field.name()))
-
-        for callback in class_desc.callbacks():
-            fmt = "{impl_cast}->{registrar}(reinterpret_cast<void*>(&{thunk}));\n"
-            registrar = callback_setter_name(callback)
-            thunk = self.callback_thunk_name(class_desc, callback)
-            writer.write(fmt.format(impl_cast=impl_cast,registrar=registrar,thunk=thunk))
-
-        # write setting of the impl getter
-        impl_getter = self.impl_getter_name(class_desc)
-        writer.write("{impl_cast}->setGetImpl(&{impl_getter});\n".format(impl_cast=impl_cast,impl_getter=impl_getter))
-
-        writer.outdent()
-        writer.write("}\n")
-
-    def write_arg_setup(self, writer, parm):
-        """
-        Writes the setup needed in the implementation of a client
-        API service to forward arguments to the corresponding
-        JitBuilder implementation function.
-
-        When an argument is an array or is and in-out parameter
-        (passed by reference), it must be converted to the equivalent
-        construct for the implementation objects. That is, an array
-        of client objects must be converted into an array of
-        implementation objects and a reference to a client object
-        must converted into a reference to an implementation object.
-
-        Since these act as in-out parameters and can visibly altered,
-        the user arguments must be reconstructed at the end of a call.
-        The `write_arg_return()` function generates this code.
-        """
-        if parm.is_in_out():
-            assert parm.type().is_class()
-            t = self.get_class_name(parm.type().as_class())
-            writer.write("ARG_SETUP({t}, {n}Impl, {n}Arg, {n});\n".format(t=t, n=parm.name()))
-        elif parm.is_array():
-            assert parm.type().is_class()
-            t = self.get_class_name(parm.type().as_class())
-            writer.write("ARRAY_ARG_SETUP({t}, {s}, {n}Arg, {n});\n".format(t=t, n=parm.name(), s=parm.array_len()))
 
     def write_arg_return(self, writer, parm):
         """
@@ -636,13 +368,12 @@ class JavaGenerator:
         `write_arg_setup()` does.
         """
         if parm.is_in_out():
+            # todo: modify this part
             assert parm.type().is_class()
             t = self.get_class_name(parm.type().as_class())
-            writer.write("ARG_RETURN({t}, {n}Impl, {n});\n".format(t=t, n=parm.name()))
         elif parm.is_array():
             assert parm.type().is_class()
             t = self.get_class_name(parm.type().as_class())
-            # writer.write("ARRAY_ARG_RETURN({t}, {s}, {n}Arg, {n});\n".format(t=t, n=parm.name(), s=parm.array_len()))
 
     def write_class_service_impl(self, writer, desc, class_desc):
         """
@@ -660,15 +391,23 @@ class JavaGenerator:
         class_name = self.get_class_name(class_desc)
 
         # make sure that we don't have a parameter that is a pointer
-        for parm in desc.parameters():
-            if parm.is_in_out():
-                return
+        # todo(Allan): fix hardcode, check exclusion vs inclusion
+        if name not in ("AddWithOverflow", 
+        "AddWithUnsignedOverflow", "MulWithOverflow", 
+        "SubWithOverflow", "SubWithUnsignedOverflow", 
+        "Transaction", "DoWhileLoop", "DoWhileLoopWithBreak",
+        "DoWhileLoopWithContinue", "IfAnd", "IfOr", "IfThen",
+        "IfThenElse", "ForLoop", "ForLoopDown", "ForLoopUp",
+        "ForLoopWithBreak", "ForLoopWithContinue"):
+            for parm in desc.parameters():
+                if parm.is_in_out():
+                    return
 
         ret_type = desc.return_type().name()
         if ret_type == "none":
             ret_type = "void"
-        elif ret_type != "TypeDictionary":
-            ret_type = "ILValue"
+        elif ret_type not in ("IlBuilder", "BytecodeBuilder", "TypeDictionary", "JBCondition"):
+            ret_type = "IlValue"
         writer.write("public {return_type} {name}({parms}) {{\n".format(return_type=ret_type, name=name, parms=parms))
         
         writer.indent()
@@ -680,23 +419,41 @@ class JavaGenerator:
             #     self.write_arg_setup(writer, parm)
 
             args = self.generate_arg_list(desc.parameters())
-            # todo(Allan): here
-            impl_call = "impl_{sname}({args})".format(impl_cast=self.to_impl_cast(class_desc,"_impl"),sname=name,args=args)
+            #todo(Allan): improve
+            in_out = ""
+            if "transformArray(" in args:
+                if "MethodBuilder" in parms:
+                    in_out = "MethodBuilder"
+                else:
+                    in_out = "WithArgArray"
+            bc_ext = ""
+            if "ForLoop" != name and "breakBuilder" in args and "WithBreak" not in name:
+                bc_ext += "WithBreak"
+            if "ForLoop" != name and "continueBuilder" in args and "WithContinue" not in name:
+                bc_ext += "AndContinue"
+            
+            impl_call = "impl_{sname}{in_out}{bc_ext}({args})".format("_impl",sname=name,args=args,in_out=in_out,bc_ext=bc_ext)
             if "none" == desc.return_type().name():
                 writer.write(impl_call + ";\n")
-                # for parm in desc.parameters():
-                #     self.write_arg_return(writer, parm)
             elif desc.return_type().is_class():
-                writer.write("long implRet = {call};\n".format(cname=class_name, rtype=self.get_impl_type(desc.return_type()), call=impl_call))
-                writer.write("{cname} clientRet = null;\n".format(cname=class_name))
+                writer.write("long implRet = {call};\n".format(call=impl_call))
+                writer.write("{ret} clientRet=null;\n".format(ret=ret_type))
                 for parm in desc.parameters():
                     self.write_arg_return(writer, parm)
                 writer.write("if (implRet != 0L) {\n")
                 writer.indent()
-                writer.write("clientRet = {cname}.getClientObj(implRet);\n".format(cname=name))
+
+                if ret_type == "JBCondition":
+                    src_get_client = "IlBuilder"
+                    cond_ext = "_IlBuilder_JBCondition_"
+                else:
+                    src_get_client = ret_type
+                    cond_ext = ""
+                writer.write("clientRet = {src_get_client}.get{cond_ext}ClientObj(implRet);\n".format(src_get_client=src_get_client, cond_ext=cond_ext))
+
                 writer.write("if (clientRet == null) {\n")
                 writer.indent()
-                writer.write("clientRet = new {cname}(implRet);\n".format(cname=class_name))
+                writer.write("clientRet = new {ret}(implRet);\n".format(ret=ret_type))
                 writer.outdent()
                 writer.write("}\n")
                 writer.outdent()
@@ -709,132 +466,7 @@ class JavaGenerator:
                 writer.write("return ret;\n")
 
         writer.outdent()
-        writer.write("}\n")
-
-    def write_vararg_service_impl(self, writer, desc, class_name):
-        """
-        Writes the implementation of a client API class
-        vararg service.
-
-        Vararg functions are expected to have equivalent functions
-        that take an array instead of the vararg. As such,
-        their implementation simply re-packages the vararg into
-        an array and calls the array version of the function.
-        """
-        rtype = self.get_client_type(desc.return_type())
-        name = desc.name()
-        vararg = desc.parameters()[-1]
-        vararg_type = self.get_client_type(vararg.type())
-
-        parms = self.generate_vararg_parm_list(desc.parameters())
-        writer.write("{rtype} {cname}::{name}({parms}) {{\n".format(rtype=rtype,cname=class_name,name=name,parms=parms))
-        writer.indent()
-
-        args = ", ".join([p.name() for p in desc.parameters()])
-        writer.write("{t}* {arg} = new {t}[{num}];\n".format(t=vararg_type,arg=vararg.name(),num=vararg.array_len()))
-        writer.write("va_list vararg;\n")
-        writer.write("va_start(vararg, {num});\n".format(num=vararg.array_len()))
-        writer.write("for (int i = 0; i < {num}; ++i) {{ {arg}[i] = va_arg(vararg, {t}); }}\n".format(num=vararg.array_len(),arg=vararg.name(),t=vararg_type))
-        writer.write("va_end(vararg);\n")
-        get_ret = "" if "none" == desc.return_type().name() else "{rtype} ret = ".format(rtype=rtype)
-        writer.write("{get_ret}{name}({args});\n".format(get_ret=get_ret,name=name,args=args))
-        writer.write("delete[] {arg};\n".format(arg=vararg.name()))
-        if "none" != desc.return_type().name():
-            writer.write("return ret;\n")
-        writer.outdent()
-        writer.write("}\n")
-
-    def generate_callback_parm_list(self, parm_descs):
-        """
-        Generates the parameter list declaration for a client
-        API callback from a list of parameter descriptions.
-
-        Callbacks have a special signature as they are functions
-        that take as first parameter an opaque pointer to a
-        client object. Any other parameters accepting an object
-        type also use opaque pointers.
-
-        The generated list is usable as the parameter declaraion
-        of the callback thunk.
-        """
-        parms = [self.generate_parm(p) if p.type().is_builtin() else "void * {}".format(p.name()) for p in parm_descs]
-        return list_str_prepend("void * clientObj", ", ".join(parms))
-
-    def generate_callback_arg_list(self, parm_descs):
-        """
-        Generates a list of the arguments of a client API callback
-        from a list of parameter descriptions.
-
-        The generated list is usable in the callback thunk to
-        forwarding the arguments to function implementing the
-        callback body.
-        """
-        cast_fmt = "static_cast<{t}>({n})!!"
-        args= [self.generate_arg(p) if p.type().is_builtin() else cast_fmt.format(t=self.get_client_type(p.type()),n=p.name()) for p in parm_descs]
-        return ", ".join(args)
-
-    def write_callback_thunk(self, writer, class_desc, callback_desc):
-        """
-        Writes the implementation of a callback thunk.
-
-        A callback is implemented as a thunk that forwards the call
-        to a member function on the object that the the callback is
-        called on (the first argument of the callback).
-        An abstract example:
-
-        ```
-            callback_thunk(obj, ...) {
-                return obj->callback(...);
-            }
-        ```
-        """
-        rtype = self.get_client_type(callback_desc.return_type())
-        thunk = self.callback_thunk_name(class_desc, callback_desc)
-        ctype = self.get_client_type(class_desc.as_type())
-        callback = callback_desc.name()
-        args = self.generate_callback_arg_list(callback_desc.parameters())
-        parms = self.generate_callback_parm_list(callback_desc.parameters())
-
-        writer.write('extern "C" {rtype} {thunk}({parms}) {{\n'.format(rtype=rtype,thunk=thunk,parms=parms))
-        writer.indent()
-        writer.write("{ctype} client = {clientObj};\n".format(ctype=ctype,clientObj=self.to_client_cast(class_desc,"clientObj")))
-        writer.write("return client->{callback}({args});\n".format(callback=callback,args=args))
-        writer.outdent()
-        writer.write("}\n")
-
-    def write_impl_getter_impl(self, writer, class_desc):
-        """
-        Writes the implementation of the callback used to get
-        the implementation object from a client API object.
-
-        The generated code simply casts the client object from
-        an opaque pointer to the type for the object and then
-        returns the field pointing to the implementation as
-        an opaque pointer.
-        """
-        getter = self.impl_getter_name(class_desc)
-        client_cast = self.to_client_cast(class_desc, "client")
-        impl_cast = self.to_impl_cast(class_desc,"{client_cast}->_impl".format(client_cast=client_cast))
-        writer.write('extern "C" void * {getter}(void * client) {{\n'.format(getter=getter))
-        writer.indent()
-        writer.write("return {impl_cast};\n".format(impl_cast=impl_cast))
-        writer.outdent()
-        writer.write("}\n")
-
-    def write_allocator_impl(self, writer, class_desc):
-        """
-        Writes the implementation of the client API object allocator.
-
-        By default, the allocator simply uses the global operator `new`
-        to allocated client objects and returns it as an opaque pointer.
-        """
-        allocator = self.get_allocator_name(class_desc)
-        name = self.get_class_name(class_desc)
-        writer.write('extern "C" void * {alloc}(void * impl) {{\n'.format(alloc=allocator))
-        writer.indent()
-        writer.write("return new {name}(impl);\n".format(name=name))
-        writer.outdent()
-        writer.write("}\n")
+        writer.write("}\n\n")
 
     def write_class_impl(self, writer, class_desc):
         """Write the implementation of a client API class."""
@@ -842,7 +474,7 @@ class JavaGenerator:
         name = class_desc.name()
         full_name = self.get_class_name(class_desc)
 
-        writer.write("public class {class_name}\n{{\n".format(class_name=name))
+        writer.write("\npublic class {class_name}\n{{\n".format(class_name=name))
         writer.indent()
 
         # write source for inner classes first (Allan)
@@ -850,9 +482,9 @@ class JavaGenerator:
             self.write_class_impl(writer, c)
             writer.write("\n")
         
-        writer.write("{class_name}(long impl) {{\n".format(class_name=name))
+        writer.write("\n{class_name}(long impl) {{\n".format(class_name=name))
         writer.indent()
-        writer.write("impl_initializeFromImpt(impl);\n")
+        writer.write("impl_initializeFromImpl(impl);\n")
         writer.outdent()
         writer.write("}\n\n")
 
@@ -863,35 +495,11 @@ class JavaGenerator:
 
         # # write service definitions
         for s in class_desc.services():
+            # todo(Allan): improve
+            if s.name() in ("Const", "Select"):
+                continue
+
             self.write_class_service_impl(writer, s, class_desc)
-            writer.write("\n")
-
-        # (Allan) C++ equivalent below
-
-        # todo(Allan): Thunk equivalent in Java
-        # # write callback thunk definitions
-        # for callback in class_desc.callbacks():
-        #     self.write_callback_thunk(writer, class_desc, callback)
-        #     writer.write("\n")
-
-        # # write impl getter defintion
-        # self.write_impl_getter_impl(writer, class_desc)
-        # writer.write("\n")
-
-        # self.write_impl_ctor_impl(writer, class_desc)
-        # writer.write("\n")
-
-        # # write class initializer (called from all constructors)
-        # self.write_impl_initializer(writer, class_desc)
-        # writer.write("\n")
-
-        # # write service definitions
-        # for s in class_desc.callbacks():
-        #     self.write_class_service_impl(writer, s, class_desc)
-        #     writer.write("\n")
-
-        # self.write_allocator_impl(writer, class_desc)
-        # writer.write("\n")
 
         # Java part (Allan)
         writer.write("private native void impl_initializeFromImpl(long impl);\n")
@@ -923,7 +531,8 @@ private static long[] transformArray(JBCase[] clientArray) {
         implArray[i] = (o != null) ? (o._impl) : 0L;
     }
     return implArray;
-}\n""")
+}
+private native void impl_initializeFromImpl(long impl);\n""")
 
             # todo(Allan): improve by handling deeper inner classes
             for inner_class in class_desc.inner_classes():
@@ -932,7 +541,7 @@ private static long[] transformArray(JBCase[] clientArray) {
                 writer.write("private static native long new{name}({args});\n".format(name=inner_name, args=args))
             
             writer.write("native static {name} getClientObj(long implObj);\n".format(name=name))
-            writer.write("native static void setClientObj(ILBuilder clientObj, long implObj);\n")
+            writer.write("native static void setClientObj(IlBuilder clientObj, long implObj);\n")
             
             # todo(Allan): improve by handling deeper inner classes
             for inner_class in class_desc.inner_classes():
@@ -954,81 +563,9 @@ private static long[] transformArray(JBCase[] clientArray) {
 
         writer.write("long _impl;\n")
         writer.outdent()
-        writer.write("}\n")
+        writer.write("}")
 
     # common utilities ##############################################
-
-    def generate_allocator_setting(self, class_desc):
-        """
-        Given a class description, generates a list of calls that set
-        the client API object allocators for the class itself and any
-        nested classes.
-
-        The generated code allows the implementation to allocated objects
-        by invoking these allocators as callbacks.
-        """
-        registrations = []
-        for c in class_desc.inner_classes():
-            registrations += self.generate_allocator_setting(c)
-        registrations += "{iname}::setClientAllocator(OMR::JitBuilder::{alloc});\n".format(iname=self.get_impl_class_name(class_desc),cname=self.get_class_name(class_desc),alloc=self.get_allocator_name(class_desc))
-        return registrations
-
-    def generate_service_decl(self, service, namespace=""):
-        """Generates a client API service declaraion from its description"""
-        ret = self.get_client_type(service.return_type())
-        name = service.name()
-        parms = self.generate_parm_list(service.parameters(), namespace)
-
-        decl = "{rtype} {name}({parms});\n".format(rtype=ret, name=name, parms=parms)
-        if service.is_vararg():
-            parms = self.generate_vararg_parm_list(service.parameters())
-            decl = decl + "{rtype} {name}({parms});\n".format(rtype=ret,name=name,parms=parms)
-
-        return decl
-
-    def write_common_decl(self, writer, api_desc):
-        """
-        Writes the declarations of all client API (non-class) services
-        from an API description.
-        """
-        writer.write(self.get_copyright_header())
-        writer.write("\n")
-        namespaces = api_desc.namespaces()
-
-        writer.write("#ifndef {}_INCL\n".format(api_desc.project()))
-        writer.write("#define {}_INCL\n\n".format(api_desc.project()))
-
-        # write some needed includes and defines
-        for header in self.get_common_system_includes():
-            writer.write(self.generate_import(header))
-        writer.write("\n")
-
-        writer.write("#define TOSTR(x) #x\n")
-        writer.write("#define LINETOSTR(x) TOSTR(x)\n\n")
-
-        # include headers for each defined class
-        for c in api_desc.get_class_names():
-            writer.write(self.generate_import(c + ".hpp"))
-        writer.write("\n")
-
-        # write declarations for all services
-        ns = "::".join(namespaces) + "::"
-        for service in api_desc.services():
-            decl = self.generate_service_decl(service, namespace=ns)
-            writer.write(decl)
-        writer.write("\n")
-
-        writer.write("#endif // {}_INCL\n".format(api_desc.project()))
-
-    def generate_impl_service_import(self, service_desc):
-        """
-        Generates an import for the implementation function
-        corresponding to a client API service.
-        """
-        rt = self.get_impl_type(service_desc.return_type())
-        n = get_impl_service_name(service_desc)
-        ps=self.generate_parm_list(service_desc.parameters(), is_client=False)
-        return "extern {rt} {n}({ps});\n".format(rt=rt, n=n, ps=ps)
 
     def write_allocators_setter(self, writer, api_desc):
         """
@@ -1045,116 +582,6 @@ private static long[] transformArray(JBCase[] clientArray) {
         writer.outdent()
         writer.write("}\n")
 
-    def write_service_impl(self, writer, desc, namespace=""):
-        """
-        Writes the implementation of client API (non-class) service.
-
-        The same approach is used to implement non-class services
-        as is used for class services.
-        """
-        rtype = self.get_client_type(desc.return_type())
-        name = desc.name()
-        parms = self.generate_parm_list(desc.parameters(), namespace)
-        writer.write("{rtype} {name}({parms}) {{\n".format(rtype=rtype, name=name, parms=parms))
-        writer.indent()
-
-        if desc.sets_allocators():
-            writer.write("{}();\n".format(self.allocator_setter_name))
-
-        for parm in desc.parameters():
-            self.write_arg_setup(writer, parm)
-
-        args = self.generate_arg_list(desc.parameters())
-        impl_call = "{sname}({args})".format(sname=get_impl_service_name(desc),args=args)
-        if "none" == desc.return_type().name():
-            writer.write(impl_call + ";\n")
-            for parm in desc.parameters():
-                self.write_arg_return(writer, parm)
-        elif desc.return_type().is_class():
-            writer.write("{rtype} implRet = {call};\n".format(rtype=self.get_impl_type(desc.return_type()), call=impl_call))
-            for parm in desc.parameters():
-                self.write_arg_return(writer, parm)
-            writer.write("GET_CLIENT_OBJECT(clientObj, {t}, implRet);\n".format(t=desc.return_type().name()))
-            writer.write("return clientObj;\n")
-        else:
-            writer.write("auto ret = " + impl_call + ";\n")
-            for parm in desc.parameters():
-                self.write_arg_return(writer, parm)
-            writer.write("return ret;\n")
-        writer.outdent()
-        writer.write("}\n")
-
-        if desc.is_vararg():
-            writer.write("\n")
-            self.write_vararg_service_impl(writer, desc, class_name)
-
-    def write_common_impl(self, writer, api_desc):
-        """Writes the implementation of all client API (non-class) services."""
-
-        writer.write(self.get_copyright_header())
-        writer.write("\n")
-
-        for h in self.impl_include_files:
-            writer.write(self.generate_import(h))
-        writer.write("\n")
-
-        for service in api_desc.services():
-            writer.write(self.generate_impl_service_import(service))
-        writer.write("\n")
-
-        self.write_allocators_setter(writer, api_desc)
-        writer.write("\n")
-
-        ns = "::".join(api_desc.namespaces()) + "::"
-        for service in api_desc.services():
-            self.write_service_impl(writer, service, ns)
-            writer.write("\n")
-
-    def write_class_header(self, writer, class_desc, namespaces, class_names):
-        """Writes the header for a client API class from the class description."""
-
-        has_extras = class_desc.name() in self.classes_with_extras
-
-        writer.write(self.get_copyright_header())
-        writer.write("\n")
-
-        writer.write("#ifndef {}_INCL\n".format(class_desc.name()))
-        writer.write("#define {}_INCL\n\n".format(class_desc.name()))
-
-        for header in self.get_common_system_includes():
-            writer.write(self.generate_import(header))
-
-        if class_desc.has_parent():
-            writer.write(self.generate_import("{}.hpp".format(class_desc.parent().name())))
-
-        if has_extras:
-            writer.write(self.generate_import('{}ExtrasOutsideClass.hpp'.format(class_desc.name())))
-        writer.write("\n")
-
-        # open each nested namespace
-        for n in namespaces:
-            writer.write("namespace {} {{\n".format(n))
-        writer.write("\n")
-
-        writer.write("// forward declarations for all API classes\n")
-        for c in class_names:
-            writer.write("class {};\n".format(c))
-        writer.write("\n")
-
-        self.write_class_def(writer, class_desc)
-        writer.write("\n")
-
-        self.write_allocator_decl(writer, class_desc)
-        writer.write("\n")
-
-        # close each opened namespace
-        for n in reversed(namespaces):
-            writer.write("}} // {}\n".format(n))
-        writer.write("\n")
-
-        writer.write("#endif // {}_INCL\n".format(class_desc.name()))
-
-    #todo(Allan): you are here
     def write_class_source(self, writer, class_desc, namespaces, class_names):
         """
         Writes the implementation (source) for a client API class
@@ -1162,13 +589,16 @@ private static long[] transformArray(JBCase[] clientArray) {
         """
         writer.write(self.get_copyright_header())
         writer.write("\n")
+        writer.write(""" /*
+  * This file is automatically generated. Do not modify!!
+  */
+        \n""")
 
-        # hardcoded write all imports
         writer.write("package org.eclipse.omr.jitbuilder;\n")
         packages = (
               "java.lang.invoke.MethodHandle"
             , "java.lang.invoke.MethodHandles"
-            , "java.lang.invoke.MethodTypes"
+            , "java.lang.invoke.MethodType"
             , "java.lang.reflect.Field"
             , "java.lang.reflect.Method"
             , "java.util.*"
@@ -1178,12 +608,6 @@ private static long[] transformArray(JBCase[] clientArray) {
         )
         for p in packages:
             writer.write(self.generate_import(p))
-        writer.write("\n")
-
-        # open each nested namespace
-        # for n in namespaces:
-        #     writer.write("namespace {} {{\n".format(n))
-        # writer.write("\n")
 
         self.write_class_impl(writer, class_desc)
 
@@ -1191,10 +615,7 @@ private static long[] transformArray(JBCase[] clientArray) {
         """Generates and writes a client API class from its description."""
 
         cname = class_desc.name()
-        # header_path = os.path.join(header_dir, cname + ".hpp")
         source_path = os.path.join(source_dir, cname + ".java")
-        # with open(header_path, "w") as writer:
-        #     self.write_class_header(PrettyPrinter(writer), class_desc, namespaces, class_names)
         with open(source_path, "w") as writer:
             self.write_class_source(PrettyPrinter(writer), class_desc, namespaces, class_names)
 
@@ -1217,17 +638,9 @@ if __name__ == "__main__":
 
     namespaces = api_description.namespaces()
     class_names = api_description.get_class_names()
-    # impl_include_files = gen_api_impl_includes(api_description.classes(), args.headerdir)
 
     for class_desc in api_description.classes():
         generator.write_class(args.headerdir, args.sourcedir, class_desc, namespaces, class_names)
-    # with open(os.path.join(args.headerdir, "JitBuilder.hpp"), "w") as writer:
-    #     generator.write_common_decl(PrettyPrinter(writer), api_description)
-    # with open(os.path.join(args.sourcedir, "JitBuilder.cpp"), "w") as writer:
-    #     generator.write_common_impl(PrettyPrinter(writer), api_description)
 
     extras_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "extras", "cpp")
     names = os.listdir(extras_dir)
-    # for name in names:
-    #     if name.endswith(".hpp"):
-    #         shutil.copy(os.path.join(extras_dir,name), os.path.join(args.headerdir,name))
