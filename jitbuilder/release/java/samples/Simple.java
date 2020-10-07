@@ -1,7 +1,7 @@
-package jitbuilder.release.java.samples;
+// package jitbuilder.release.java.samples;
 
-import jitbuilder.release.java.include.JitBuilder;
-import jitbuilder.release.java.include.MethodBuilder;
+// import jitbuilder.release.java.include.JitBuilder;
+// import jitbuilder.release.java.include.MethodBuilder;
 
 public class Simple {
     static {
@@ -9,7 +9,7 @@ public class Simple {
     }
 
     static class SimpleMethod extends MethodBuilder {
-        SimpleMethod(JitBuilder.TypeDictionary types) {
+        SimpleMethod(TypeDictionary types) {
             super(types);
 
             // ???
@@ -24,7 +24,6 @@ public class Simple {
             );
             return true;
         }
-        
     }
 
     public static void main(String args[]) {
@@ -36,11 +35,11 @@ public class Simple {
         }
 
         System.out.println("Step 2: define type dictionary");
-        JitBuilder.TypeDictionary types = new JitBuilder.TypeDictionary();
+        TypeDictionary types = new TypeDictionary();
 
         System.out.println("Step 3: compile method builder");
         SimpleMethod method = new SimpleMethod(types);
-        MethodBuilder.MethodWrapper methodWrapper = method.compile();
+        MethodHandler methodWrapper = method.compile();
 
         System.out.println("Step 4: invoke compiled code and print results");
         int v;
@@ -57,6 +56,6 @@ public class Simple {
         System.out.println(String.format("increment(%d) == %d", v, methodWrapper.invoke(v)));
 
         System.out.println("Step 5: shutdown JIT");
-        JitBuilder.shutdownJIT();
+        JitBuilder.shutdownJit();
     }
 }
