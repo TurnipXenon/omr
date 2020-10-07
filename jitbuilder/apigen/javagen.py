@@ -392,16 +392,17 @@ class JavaGenerator:
 
         # make sure that we don't have a parameter that is a pointer
         # todo(Allan): fix hardcode, check exclusion vs inclusion
-        if name not in ("AddWithOverflow", 
-        "AddWithUnsignedOverflow", "MulWithOverflow", 
-        "SubWithOverflow", "SubWithUnsignedOverflow", 
-        "Transaction", "DoWhileLoop", "DoWhileLoopWithBreak",
-        "DoWhileLoopWithContinue", "IfAnd", "IfOr", "IfThen",
-        "IfThenElse", "ForLoop", "ForLoopDown", "ForLoopUp",
-        "ForLoopWithBreak", "ForLoopWithContinue"):
-            for parm in desc.parameters():
-                if parm.is_in_out():
-                    return
+        # if name not in ("AddWithOverflow", 
+        # "AddWithUnsignedOverflow", "MulWithOverflow", 
+        # "SubWithOverflow", "SubWithUnsignedOverflow", 
+        # "Transaction", "DoWhileLoop", "DoWhileLoopWithBreak",
+        # "DoWhileLoopWithContinue", "IfAnd", "IfOr", "IfThen",
+        # "IfThenElse", "ForLoop", "ForLoopDown", "ForLoopUp",
+        # "ForLoopWithBreak", "ForLoopWithContinue", "Switch","TableSwitch",
+        # "MakeCase", "WhileDoLoop", "WhileDoLoopWithBreak", "WhileDoLoopWithContinue"):
+        #     for parm in desc.parameters():
+        #         if parm.is_in_out():
+        #             return
 
         ret_type = desc.return_type().name()
         if ret_type == "none":
@@ -502,13 +503,11 @@ class JavaGenerator:
             self.write_class_service_impl(writer, s, class_desc)
 
         # Java part (Allan)
-        writer.write("private native void impl_initializeFromImpl(long impl);\n")
 
         # for the parent class
         if len(class_desc.containing_classes()) == 0:
             # todo(Allan): hard code improve
-            writer.write("""
-private static long[] transformArray(IlValue[] clientArray) {
+            writer.write("""private static long[] transformArray(IlValue[] clientArray) {
     long implArray[] = new long[clientArray.length];
     for (int i=0;i < clientArray.length; i++) {
         IlValue o = clientArray[i];
@@ -552,12 +551,6 @@ private native void impl_initializeFromImpl(long impl);\n""")
             
             for s in class_desc.services():
                 param_is_in_out = False
-                for parm in s.parameters():
-                    if parm.is_in_out():
-                        param_is_in_out = True
-                        break
-                if param_is_in_out:
-                    continue
                 parms = self.generate_parm_list(s.parameters())
                 writer.write("private native long impl_{name}({parms});\n".format(name=s.name(), parms=parms))
 
