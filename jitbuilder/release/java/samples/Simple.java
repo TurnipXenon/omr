@@ -8,24 +8,6 @@ public class Simple {
         System.loadLibrary("native");
     }
 
-    static class SimpleMethod extends MethodBuilder {
-        SimpleMethod(TypeDictionary types) {
-            super(types);
-
-            // ???
-        }
-
-        @Override
-        public boolean buildIL() {
-            Return(
-                Add(
-                    Load("value"), 
-                    ConstInt32(1))
-            );
-            return true;
-        }
-    }
-
     public static void main(String args[]) {
         System.out.println("Step 1: initialize JIT");
         boolean success = JitBuilder.initializeJit();
