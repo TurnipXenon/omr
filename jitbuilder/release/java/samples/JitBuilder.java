@@ -1,11 +1,7 @@
 // package jitbuilder.release.java.samples;
 
 public class JitBuilder {
-    public static boolean initializeJit() {
-        return true;
-    }
+    public static native boolean initializeJit();
 
-    public static boolean shutdownJit() {
-        return true;
-    }
+    public static native boolean shutdownJit();
 }
