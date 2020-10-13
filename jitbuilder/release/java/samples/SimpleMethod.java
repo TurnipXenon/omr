@@ -4,8 +4,9 @@ public class SimpleMethod extends MethodBuilder {
     
     SimpleMethod(TypeDictionary types) {
         super(types);
-
-        // ???
+        DefineName("increment");
+        DefineParameter("value", Int32);
+        DefineReturnType(Int32);
     }
 
     @Override

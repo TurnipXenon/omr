@@ -1,12 +1,15 @@
+import org.eclipse.omr.jitbuilder.IlBuilder;
+
 public class TypeDictionary {
-    public TypeDictionary() {
-        
+    public long _impl;
+
+    public TypeDictionary(long implRet) {
+        impl_initializeFromImpl(implRet);
     }
 
-    public TypeDictionary(long clientRet) {
-    }
+    private native void impl_initializeFromImpl(long impl);
 
-    public static TypeDictionary getClientObj(long implRet) {
-        return new TypeDictionary(implRet);
-    }
+    public native static IlBuilder getClientObj(long implRet);
+
+	public native static void setClientObj(TypeDictionary clientObj, long implObj);
 }

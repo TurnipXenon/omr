@@ -2,14 +2,20 @@
 
 // package jitbuilder.release.java;
 
-public abstract class MethodBuilder extends IlBuilder {
+public class MethodBuilder extends IlBuilder {
     public long _impl;
+
+    public MethodBuilder(long impl) {
+        super(impl);
+    }
 
     public MethodBuilder(TypeDictionary types) {
         super(0L);
     }
 
-    public abstract boolean buildIL();
+    public boolean buildIL() {
+        return false;
+    }
 
     public MethodHandler compile() {
         return new MethodHandler(0L);

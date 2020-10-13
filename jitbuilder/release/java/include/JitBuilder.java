@@ -7,9 +7,6 @@ public class JitBuilder {
         return true;
     }
 
-	public static class TypeDictionary {
-	}
-
 	public static void shutdownJIT() {
 	}
 }
