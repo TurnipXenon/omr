@@ -66,6 +66,7 @@ set(JITBUILDER_API_DESCRIPTION ${CMAKE_CURRENT_SOURCE_DIR}/apigen/jitbuilder.api
 set(JAVA_API_GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/apigen/javagen.py)
 set(JITBUILDER_JAVA_API_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/release/java/include)
 set(JITBUILDER_JAVA_API_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}client/java)
+set(JITBUILDER_JAVA_API_JNI_DIR ${CMAKE_CURRENT_BINARY_DIR}client/java)
 
 set(JITBUILDER_API_SOURCES
 	${JITBUILDER_CPP_API_SOURCE_DIR}/BytecodeBuilder.cpp
@@ -133,7 +134,7 @@ add_custom_command(
 list(APPEND JITBUILDER_OBJECTS
 	${JITBUILDER_API_SOURCES}
 	${JITBUILDER_JAVA_API_SOURCES}
-)
+) # todo: add the java things
 
 # Create jitbuilder library.
 create_omr_compiler_library(
