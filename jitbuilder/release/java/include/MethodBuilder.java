@@ -1,21 +1,23 @@
-package jitbuilder.release.java.include;
+// import org.eclipse.omr.jitbuilder.IlBuilder;
 
-import org.eclipse.omr.jitbuilder.IlBuilder;
+// package jitbuilder.release.java;
 
-// placeholder
+public class MethodBuilder extends IlBuilder {
+    public long _impl;
 
-public abstract class MethodBuilder extends IlBuilder {
-    public static class MethodWrapper {
-        public native int invoke(int num);
+    public MethodBuilder(long impl) {
+        super(impl);
     }
 
-    public MethodBuilder(JitBuilder.TypeDictionary typeDictionary) {
-        super(0); // place holder
+    public MethodBuilder(TypeDictionary types) {
+        super(0L);
     }
 
-    public abstract boolean buildIL();
+    public boolean buildIL() {
+        return false;
+    }
 
-    public MethodWrapper compile(){
-        return null;
+    public MethodHandler compile() {
+        return new MethodHandler(0L);
     }
 }

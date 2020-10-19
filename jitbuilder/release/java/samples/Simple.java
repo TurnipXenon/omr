@@ -1,4 +1,4 @@
-// package jitbuilder.release.java.samples;
+package jitbuilder.release.java.samples;
 
 // import jitbuilder.release.java.include.JitBuilder;
 // import jitbuilder.release.java.include.MethodBuilder;
