@@ -176,7 +176,7 @@ class SymbolReferenceTable
        */
       osrFearPointHelperSymbol,
       /** \brief
-       * 
+       *
        * A call with this symbol marks a place where we want/need escape analysis to add heapifications for any stack allocated
        * objects. The primary use case is to force escape of all live local objects ahead of a throw to an OSR catch block
        * but they may also be inserted to facilitate peeking of methods under HCR or other uses. Calls to this helper should
@@ -357,17 +357,36 @@ class SymbolReferenceTable
       atomicCompareAndSwapReturnValueSymbol,
 
       /** \brief
-       *  
+       *
        * These symbols represent placeholder calls for profiling value which will be lowered into trees later.
-       * 
+       *
        * \code
        *    call <jProfileValue/jProfileValueWithNullCHK>
        *       <value to be profiled>
        *       <table address>
        * \endcode
        */
-      jProfileValueSymbol, 
+      jProfileValueSymbol,
       jProfileValueWithNullCHKSymbol,
+
+      /** \brief
+       * This symbol represents the tempSlot field in j9vmthread. It will provide a mechanism for the compiler
+       * to insert temporary information that the VM can use - such as the number of args when calling
+       * signature-polymorphic methods that are implemented in the VM as internal natives. The VM can use that
+       * information in a number of ways, such as locating items on the stack.
+       *
+       * \code
+       *    istore  <j9VMThreadTempSlotField>
+       *       iconst <number of args for the call to the signature-polymorphic VM internal native method>
+       *    icall <VM internal native method>
+       *       <object the VM needs to locate>
+       *       <parm1>
+       *       <parm2>
+       *       .
+       *       .
+       * \endcode
+       */
+      j9VMThreadTempSlotFieldSymbol,
 
       firstPerCodeCacheHelperSymbol,
       lastPerCodeCacheHelperSymbol = firstPerCodeCacheHelperSymbol + TR_numCCPreLoadedCode - 1,
@@ -476,7 +495,7 @@ class SymbolReferenceTable
    TR::SymbolReference * getSymRef(int32_t i) { return baseArray.element(i); }
 
    TR::SymbolReference * createRuntimeHelper(TR_RuntimeHelper index, bool canGCandReturn, bool canGCandExcept, bool preservesAllRegisters);
-   TR::SymbolReference * findOrCreateRuntimeHelper(TR_RuntimeHelper index, bool canGCandReturn, bool canGCandExcept, bool preservesAllRegisters);
+   TR::SymbolReference * findOrCreateRuntimeHelper(TR_RuntimeHelper index, bool canGCandReturn = false, bool canGCandExcept = false, bool preservesAllRegisters = false);
 
    TR::SymbolReference * findOrCreateCodeGenInlinedHelper(CommonNonhelperSymbol index);
    TR::SymbolReference * findOrCreateJProfileValuePlaceHolderSymbolRef();

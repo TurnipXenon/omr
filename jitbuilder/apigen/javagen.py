@@ -37,6 +37,7 @@ also describes how the generated code works.
 import os
 import datetime
 import json
+from os import replace
 import shutil
 import argparse
 from genutils import *
@@ -146,6 +147,10 @@ class JavaGenerator:
                                              , "constString": "L/java/lang/String;"
                                              , "string": "L/java/lang/String;"
                                              }
+        self.jni_type_names = ("NoType", "Int8", "Int16", "Int32"
+        , "Int64", "Float", "Double", "Address", "VectorInt8"
+        , "VectorInt16", "VectorInt32", "VectorInt64", "VectorFloat"
+        , "VectorDouble", "Word")
 
         # List of files to be included in the client API implementation.
         self.impl_include_files = self.gen_api_impl_includes(api.classes(), headerdir)
@@ -375,7 +380,7 @@ class JavaGenerator:
             assert parm.type().is_class()
             t = self.get_class_name(parm.type().as_class())
 
-    def write_class_service_impl(self, writer, desc, class_desc):
+    def write_class_service_impl(self, writer, desc, class_desc, signatures):
         """
         Writes the implementation of a client API class service.
 
@@ -407,8 +412,14 @@ class JavaGenerator:
         ret_type = desc.return_type().name()
         if ret_type == "none":
             ret_type = "void"
-        elif ret_type not in ("IlBuilder", "BytecodeBuilder", "TypeDictionary", "JBCondition"):
+        elif ret_type not in ("IlBuilder", "BytecodeBuilder", "TypeDictionary", "JBCondition", "JBCase"):
             ret_type = "IlValue"
+        current_signature = "{name}({parms})".format(name=name, parms=parms)
+        if (current_signature in signatures):
+            return
+        
+        signatures.append(current_signature)
+        
         writer.write("public {return_type} {name}({parms}) {{\n".format(return_type=ret_type, name=name, parms=parms))
         
         writer.indent()
@@ -447,6 +458,9 @@ class JavaGenerator:
                 if ret_type == "JBCondition":
                     src_get_client = "IlBuilder"
                     cond_ext = "_IlBuilder_JBCondition_"
+                elif ret_type == "JBCase":
+                    src_get_client = "IlBuilder"
+                    cond_ext = "_IlBuilder_JBCase_"
                 else:
                     src_get_client = ret_type
                     cond_ext = ""
@@ -495,12 +509,13 @@ class JavaGenerator:
         writer.write("\n")
 
         # # write service definitions
+        signatures = [] # check if we already had the signature
         for s in class_desc.services():
             # todo(Allan): improve
             if s.name() in ("Const", "Select"):
                 continue
-
-            self.write_class_service_impl(writer, s, class_desc)
+            
+            self.write_class_service_impl(writer, s, class_desc, signatures)
 
         # Java part (Allan)
 
@@ -537,22 +552,49 @@ private native void impl_initializeFromImpl(long impl);\n""")
             for inner_class in class_desc.inner_classes():
                 inner_name = inner_class.name()
                 args = self.generate_parm_list(inner_class.constructors()[0].parameters())
+                args = args.replace("IlBuilder", "long")
+                args = args.replace("IlValue", "long")
                 writer.write("private static native long new{name}({args});\n".format(name=inner_name, args=args))
             
             writer.write("native static {name} getClientObj(long implObj);\n".format(name=name))
             writer.write("native static void setClientObj(IlBuilder clientObj, long implObj);\n")
             
             # todo(Allan): improve by handling deeper inner classes
+            replacements = (("IlValue", "long"),("IlType","long"), ("IlBuilder", "long"))
             for inner_class in class_desc.inner_classes():
                 inner_name = inner_class.name()
                 args = self.generate_parm_list(inner_class.constructors()[0].parameters())
-                writer.write("native static {inner} get_{parent}_{inner}_name(long implObj);\n".format(inner=inner_name, parent=name, args=args))
-                writer.write("native static void set_{parent}_{inner}_name({inner} clientObj, long implObj);\n".format(inner=inner_name, parent=name, args=args))
+                writer.write("native static {inner} get_{parent}_{inner}_ClientObj(long implObj);\n".format(inner=inner_name, parent=name, args=args))
+                writer.write("native static void set_{parent}_{inner}_ClientObj({inner} clientObj, long implObj);\n".format(inner=inner_name, parent=name, args=args))
             
             for s in class_desc.services():
                 param_is_in_out = False
                 parms = self.generate_parm_list(s.parameters())
-                writer.write("private native long impl_{name}({parms});\n".format(name=s.name(), parms=parms))
+
+                # remove duplicates
+                current_signature = "{name}({parms})".format(name=s.name(), parms=parms)
+                if current_signature in signatures:
+                    signatures.remove(current_signature)
+                else:
+                    continue
+
+                # remove impl_Const
+                if "impl_Const" in current_signature:
+                    continue
+
+                # replace the parameters with simple types
+                for r in replacements:
+                    parms = parms.replace(r[0], r[1])
+
+                ret_type = s.return_type().name()
+                if (ret_type != "none"):
+                    ret_type = "long"
+                else:
+                    ret_type = "void"
+                writer.write("private native {ret_type} impl_{name}({parms});\n".format(name=s.name(), parms=parms, ret_type=ret_type))
+
+            for n in self.jni_type_names:
+                writer.write("protected IlType {n};\n".format(n=n))
 
         writer.write("long _impl;\n")
         writer.outdent()
