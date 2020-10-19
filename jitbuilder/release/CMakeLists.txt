@@ -25,53 +25,66 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# java side
+find_package(Java REQUIRED)
+include(UseJava)
+
+set(CMAKE_JAVA_COMPILE_FLAGS "-source" "1.6" "-target" "1.6")
+
 macro(create_jitbuilder_test target)
-	omr_add_executable(${target} NOWARNINGS ${ARGN})
-	target_include_directories(${target} PUBLIC cpp/include)
-	target_link_libraries(${target}
-		jitbuilder
-		${CMAKE_DL_LIBS})
-	add_test(NAME ${target}_example_as_test COMMAND ${target})
+    omr_add_executable(${target} NOWARNINGS ${ARGN})
+    target_include_directories(${target} PUBLIC cpp/include)
+    target_link_libraries(${target}
+        jitbuilder
+        ${CMAKE_DL_LIBS})
+    add_test(NAME ${target}_example_as_test COMMAND ${target})
 endmacro(create_jitbuilder_test)
 
-# Basic Tests: These should run properly on all platforms.
-create_jitbuilder_test(conditionals    cpp/samples/Conditionals.cpp)
-create_jitbuilder_test(isSupportedType cpp/samples/IsSupportedType.cpp)
-create_jitbuilder_test(iterfib         cpp/samples/IterativeFib.cpp)
-create_jitbuilder_test(nestedloop      cpp/samples/NestedLoop.cpp)
-create_jitbuilder_test(pow2            cpp/samples/Pow2.cpp)
-create_jitbuilder_test(simple          cpp/samples/Simple.cpp)
-create_jitbuilder_test(worklist        cpp/samples/Worklist.cpp)
+macro(create_jitbuilder_test_java target src_path entry_point)
+    add_jar(${target} ${src_path} ENTRY_POINT ${entry_point})
+    get_target_property(_jarFile ${target} JAR_FILE)
+    get_target_property(_classDir ${target} CLASSDIR)
+    add_test(NAME ${target}_example_as_test COMMAND ${Java_JAVA_EXECUTABLE} -cp ${_jarFile} ${target})
+endmacro(create_jitbuilder_test_java)
 
-create_jitbuilder_test(simpleJava      java/samples/Simple.java)
+# Basic Tests: These should run properly on all platforms.
+create_jitbuilder_test(conditionals         cpp/samples/Conditionals.cpp)
+create_jitbuilder_test(isSupportedType      cpp/samples/IsSupportedType.cpp)
+create_jitbuilder_test(iterfib              cpp/samples/IterativeFib.cpp)
+create_jitbuilder_test(nestedloop           cpp/samples/NestedLoop.cpp)
+create_jitbuilder_test(pow2                 cpp/samples/Pow2.cpp)
+create_jitbuilder_test(simple               cpp/samples/Simple.cpp)
+create_jitbuilder_test(worklist             cpp/samples/Worklist.cpp)
+              
+create_jitbuilder_test_java(simpleJava      java/samples/Simple.java       jitbuilder.release.java.samples.Simple)
 
 # Extended JitBuilder Tests: These may not run properly on all platforms
 # Opt in by setting OMR_JITBUILDER_TEST_EXTENDED
 if(OMR_JITBUILDER_TEST_EXTENDED)
-	create_jitbuilder_test(call              cpp/samples/Call.cpp)
-	create_jitbuilder_test(conststring       cpp/samples/ConstString.cpp)
-	create_jitbuilder_test(dotproduct        cpp/samples/DotProduct.cpp)
-	create_jitbuilder_test(inliningrecfib    cpp/samples/InliningRecFib.cpp)
-	create_jitbuilder_test(fieldaddress      cpp/samples/FieldAddress.cpp)
-	create_jitbuilder_test(linkedlist        cpp/samples/LinkedList.cpp)
-	create_jitbuilder_test(localarray        cpp/samples/LocalArray.cpp)
-	create_jitbuilder_test(operandarraytests cpp/samples/OperandArrayTests.cpp)
-	create_jitbuilder_test(operandstacktests cpp/samples/OperandStackTests.cpp)
-	create_jitbuilder_test(pointer           cpp/samples/Pointer.cpp)
-	create_jitbuilder_test(recfib            cpp/samples/RecursiveFib.cpp)
-	create_jitbuilder_test(structArray       cpp/samples/StructArray.cpp)
-	create_jitbuilder_test(switch            cpp/samples/Switch.cpp)
-	create_jitbuilder_test(tableswitch       cpp/samples/TableSwitch.cpp)
-	create_jitbuilder_test(toiltype          cpp/samples/ToIlType.cpp)
-	create_jitbuilder_test(union             cpp/samples/Union.cpp)
-	create_jitbuilder_test(vmregister        cpp/samples/VMRegister.cpp)
+    create_jitbuilder_test(call              cpp/samples/Call.cpp)
+    create_jitbuilder_test(conststring       cpp/samples/ConstString.cpp)
+    create_jitbuilder_test(dotproduct        cpp/samples/DotProduct.cpp)
+    create_jitbuilder_test(inliningrecfib    cpp/samples/InliningRecFib.cpp)
+    create_jitbuilder_test(fieldaddress      cpp/samples/FieldAddress.cpp)
+    create_jitbuilder_test(linkedlist        cpp/samples/LinkedList.cpp)
+    create_jitbuilder_test(localarray        cpp/samples/LocalArray.cpp)
+    create_jitbuilder_test(operandarraytests cpp/samples/OperandArrayTests.cpp)
+    create_jitbuilder_test(operandstacktests cpp/samples/OperandStackTests.cpp)
+    create_jitbuilder_test(pointer           cpp/samples/Pointer.cpp)
+    create_jitbuilder_test(recfib            cpp/samples/RecursiveFib.cpp)
+    create_jitbuilder_test(structArray       cpp/samples/StructArray.cpp)
+    create_jitbuilder_test(switch            cpp/samples/Switch.cpp)
+    create_jitbuilder_test(tableswitch       cpp/samples/TableSwitch.cpp)
+    create_jitbuilder_test(toiltype          cpp/samples/ToIlType.cpp)
+    create_jitbuilder_test(union             cpp/samples/Union.cpp)
+    create_jitbuilder_test(vmregister        cpp/samples/VMRegister.cpp)
 endif()
 
 # Experimental Tests: These are still on the experimental side
 # Opt in by setting OMR_JITBUILDER_EXPERIMENTAL
 if(OMR_JITBUILDER_EXPERIMENTAL)
-	create_jitbuilder_test(atomicoperations             cpp/samples/AtomicOperations.cpp)
-	create_jitbuilder_test(transactionaloperations      cpp/samples/TransactionalOperations.cpp)
+    create_jitbuilder_test(atomicoperations             cpp/samples/AtomicOperations.cpp)
+    create_jitbuilder_test(transactionaloperations      cpp/samples/TransactionalOperations.cpp)
 endif()
 
 
