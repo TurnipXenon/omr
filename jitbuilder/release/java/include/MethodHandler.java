@@ -1,6 +1,6 @@
-// import org.eclipse.omr.jitbuilder.IlValue;
+package jitbuilder.release.java.include;
 
-// package jitbuilder.release.java.samples;
+// import org.eclipse.omr.jitbuilder.IlValue;
 
 public class MethodHandler extends IlBuilder {
     public MethodHandler(long impl) {

@@ -1,6 +1,6 @@
-// import org.eclipse.omr.jitbuilder.IlBuilder;
+package jitbuilder.release.java.include;
 
-// package jitbuilder.release.java;
+// import org.eclipse.omr.jitbuilder.IlBuilder;
 
 public class MethodBuilder extends IlBuilder {
     public long _impl;

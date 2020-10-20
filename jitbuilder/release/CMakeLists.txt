@@ -27,6 +27,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # java side
 find_package(Java REQUIRED)
+find_package(JNI REQUIRED)
 include(UseJava)
 
 set(CMAKE_JAVA_COMPILE_FLAGS "-source" "1.6" "-target" "1.6")
@@ -41,11 +42,53 @@ macro(create_jitbuilder_test target)
 endmacro(create_jitbuilder_test)
 
 macro(create_jitbuilder_test_java target src_path entry_point)
-    add_jar(${target} ${src_path} ENTRY_POINT ${entry_point})
-    get_target_property(_jarFile ${target} JAR_FILE)
-    get_target_property(_classDir ${target} CLASSDIR)
-    add_test(NAME ${target}_example_as_test COMMAND ${Java_JAVA_EXECUTABLE} -cp ${_jarFile} ${target})
+    # ../../build/
+    add_jar(JNI${target} ${src_path}
+        java/include/BytecodeBuilder.java
+        java/include/IlBuilder.java
+        java/include/IlType.java
+        java/include/IlValue.java
+        java/include/JitBuilder.java
+        java/include/MethodBuilder.java
+        java/include/MethodHandler.java
+        java/include/ThunkBuilder.java
+        java/include/TypeDictionary.java
+        java/include/VirtualMachineOperandArray.java
+        java/include/VirtualMachineOperandStack.java
+        java/include/VirtualMachineRegister.java
+        java/include/VirtualMachineRegisterInStruct.java
+        java/include/VirtualMachineState.java
+        ENTRY_POINT ${entry_point})
+    get_target_property(_jarFile JNI${target} JAR_FILE)
+    get_target_property(_classDir JNI${target} CLASSDIR)
+    
+    # based on https://stackoverflow.com/questions/18994344/cmake-jni-error
+    # generate header
+    set(_stubDir ${CMAKE_CURRENT_BINARY_DIR})
+    add_custom_command(
+        OUTPUT JNI${target}.h
+        COMMAND ${Java_JAVAG_EXECUTABLE} -verbose
+        -classpath ${_classDir}
+        -d ${_stubDir}
+        -jni JNI${target}
+    DEPENDS JNI${target}
+    )
+
+    # generate jni library
+    include_directories(${JNI_INCLUDE_DIRS} ${_classDir} ${_stubDir})
+    add_library(${target} MODULE ${target}.c JNI${target}.h)
+    set_target_properties(${target} PROPERTIES SUFFIX ".jnilib")
+    target_link_libraries(${target} ${JNI_LIBRARIES})
+    
+    add_test(NAME ${target}_example_as_test 
+        COMMAND ${Java_JAVA_EXECUTABLE} 
+        -Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}
+        -cp ${_jarFile} ${target})
 endmacro(create_jitbuilder_test_java)
+
+# source-only jar file
+# based on https://gitlab.kitware.com/cmake/cmake/-/issues/18905 suggestion
+
 
 # Basic Tests: These should run properly on all platforms.
 create_jitbuilder_test(conditionals         cpp/samples/Conditionals.cpp)

@@ -1,3 +1,5 @@
+package jitbuilder.release.java.include;
+
 public class IlValue {
     public long _impl;
 

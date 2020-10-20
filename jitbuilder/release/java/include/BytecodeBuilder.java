@@ -1,4 +1,4 @@
-// package build.jitbuilderclient.java;
+package jitbuilder.release.java.include;
 
 public class BytecodeBuilder {
     public BytecodeBuilder(long implRet) {
