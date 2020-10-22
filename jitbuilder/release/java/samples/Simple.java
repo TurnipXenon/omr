@@ -1,15 +1,16 @@
 package jitbuilder.release.java.samples;
 
-import jitbuilder.release.java.include.JitBuilder;
-import jitbuilder.release.java.include.MethodBuilder;
-import jitbuilder.release.java.include.MethodHandler;
-import jitbuilder.release.java.include.TypeDictionary;
+// import jitbuilder.release.java.include.JitBuilder;
+// import jitbuilder.release.java.include.MethodBuilder;
+// import jitbuilder.release.java.include.MethodHandler;
+// import jitbuilder.release.java.include.TypeDictionary;
 
 public class Simple {
     static {
         System.loadLibrary("native");
     }
 
+    /*
     private static class SimpleMethod extends MethodBuilder {
         SimpleMethod(TypeDictionary types) {
             super(types);
@@ -61,4 +62,13 @@ public class Simple {
         System.out.println("Step 5: shutdown JIT");
         JitBuilder.shutdownJit();
     }
+    */
+
+    // test out jni cmake
+    public static void main(String args[]) {
+        System.out.println("Testing in main");
+        test();
+    }
+
+    public native static void test();
 }

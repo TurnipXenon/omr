@@ -42,48 +42,127 @@ macro(create_jitbuilder_test target)
 endmacro(create_jitbuilder_test)
 
 macro(create_jitbuilder_test_java target src_path entry_point)
+    # todo improve code here
     # ../../build/
-    add_jar(JNI${target} ${src_path}
-        java/include/BytecodeBuilder.java
-        java/include/IlBuilder.java
-        java/include/IlType.java
-        java/include/IlValue.java
-        java/include/JitBuilder.java
-        java/include/MethodBuilder.java
-        java/include/MethodHandler.java
-        java/include/ThunkBuilder.java
-        java/include/TypeDictionary.java
-        java/include/VirtualMachineOperandArray.java
-        java/include/VirtualMachineOperandStack.java
-        java/include/VirtualMachineRegister.java
-        java/include/VirtualMachineRegisterInStruct.java
-        java/include/VirtualMachineState.java
-        ENTRY_POINT ${entry_point})
-    get_target_property(_jarFile JNI${target} JAR_FILE)
-    get_target_property(_classDir JNI${target} CLASSDIR)
+    # set(CMAKE_JNI_TARGET TRUE)
+    # add_jar(${target} ${src_path}
+        # java/include/BytecodeBuilder.java
+        # java/include/IlBuilder.java
+        # java/include/IlType.java
+        # java/include/IlValue.java
+        # java/include/JitBuilder.java
+        # java/include/MethodBuilder.java
+        # java/include/MethodHandler.java
+        # java/include/ThunkBuilder.java
+        # java/include/TypeDictionary.java
+        # java/include/VirtualMachineOperandArray.java
+        # java/include/VirtualMachineOperandStack.java
+        # java/include/VirtualMachineRegister.java
+        # java/include/VirtualMachineRegisterInStruct.java
+        # java/include/VirtualMachineState.java
+        # ENTRY_POINT ${entry_point})
+
+    # get_target_property(_jarFile ${target} JAR_FILE)
+    # get_target_property(_classDir ${target} CLASSDIR)
     
     # based on https://stackoverflow.com/questions/18994344/cmake-jni-error
     # generate header
-    set(_stubDir ${CMAKE_CURRENT_BINARY_DIR})
-    add_custom_command(
-        OUTPUT JNI${target}.h
-        COMMAND ${Java_JAVAG_EXECUTABLE} -verbose
-        -classpath ${_classDir}
-        -d ${_stubDir}
-        -jni JNI${target}
-    DEPENDS JNI${target}
-    )
+    # set(_stubDir ${CMAKE_CURRENT_BINARY_DIR})
+    # add_custom_command(
+    #     OUTPUT java/samples/jitbuilder_release_java_samples_Simple.h
+    #     COMMAND ${Java_JAVAG_EXECUTABLE} -verbose
+    #     -classpath ${_classDir}
+    #     -d ${_stubDir}
+    #     -jni ${target}
+    # DEPENDS ${target}
+    # )
 
     # generate jni library
-    include_directories(${JNI_INCLUDE_DIRS} ${_classDir} ${_stubDir})
-    add_library(${target} MODULE ${target}.c JNI${target}.h)
-    set_target_properties(${target} PROPERTIES SUFFIX ".jnilib")
-    target_link_libraries(${target} ${JNI_LIBRARIES})
+    # include_directories(${JNI_INCLUDE_DIRS} ${_classDir} ${_stubDir})
+    # add_library(${target}_o MODULE java/samples/jitbuilder_release_java_samples_Simple.cpp java/samples/jitbuilder_release_java_samples_Simple.h)
+    # set_target_properties(${target}_o PROPERTIES SUFFIX ".jnilib")
+    # target_link_libraries(${target}_o ${JNI_LIBRARIES})
+
+    # Attempt based on https://github.com/thefangbear/JNI-By-Examples/blob/master/CMakeLists.txt
+    # Issue: requires building outside CMake
+    # include_directories(${JNI_INCLUDE_DIRS})
+    # set(SOURCE_FILES java/samples/jitbuilder_release_java_samples_Simple.cpp)
+    # set(SOURCE_FILES java/samples/Simple.cpp)
+    # add_library(native SHARED ${SOURCE_FILES})
+    # target_link_libraries(native PRIVATE java/samples/jitbuilder_release_java_samples_Simple.h)
     
-    add_test(NAME ${target}_example_as_test 
-        COMMAND ${Java_JAVA_EXECUTABLE} 
+    # add_test(NAME ${target}_example_as_test 
+    #     COMMAND ${Java_JAVA_EXECUTABLE} 
+    #     -Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}
+    #     -cp ${_jarFile} ${target})
+
+    # Attempt based on https://www.tutorialfor.com/blog-240170.htm
+    # add_library(
+    #     native # name of the library
+    #     shared # sets the library as shared
+    #     java/samples/jitbuilder_release_java_samples_Simple.cpp # provide relative path to source
+    # )
+    # include_directories(java/samples/)
+    # # find_library( 
+    # #     log-lib
+    # #     # log # Android specific???
+    # # )
+    # target_link_libraries(
+    #     native
+    #     # $(log-lib} # Android specific???
+    # )
+
+    # Attempt based on CMake documentation
+    # install_jar(${target} ${LIB_INSTALL_DIR}/${target})
+    # install_jar(${target} ${LIB_INSTALL_DIR}/${target})
+    # install_jni_symlink(${LIB_INSTALL_DIR}/${target} DESTINATION ${JAVA_LIB_INSTALL_DIR})
+
+    # based on https://stackoverflow.com/questions/18994344/cmake-jni-error
+    
+    # get_target_property(_jarFile ${target} JAR_FILE)
+    # get_target_property(_classDir ${target} CLASSDIR)
+
+    # generate JNIFoo.h stub
+    # set (_stubDir "${CMAKE_CURRENT_BINARY_DIR}")
+    # add_custom_command(
+    #     OUTPUT java/samples/jitbuilder_release_java_samples_Simple.h
+    #     COMMAND ${Java_JAVAH_EXECUTABLE} -verbose
+    #         -classpath ${_classDir}
+    #         -d ${_stubDir}
+    #         -jni ${target}
+    #     DEPENDS ${target}
+    #     )
+    
+    # generate libfoo.jnilib
+    # include_directories(${JNI_INCLUDE_DIRS} ${_classDir} ${_stubDir})
+    # add_library(jitbuilder_release_java_samples_Simple MODULE java/samples/jitbuilder_release_java_samples_Simple.cpp java/samples/jitbuilder_release_java_samples_Simple.h)
+    # set_target_properties(jitbuilder_release_java_samples_Simple PROPERTIES SUFFIX ".jnilib")
+    # target_link_libraries(jitbuilder_release_java_samples_Simple ${JNI_LIBRARIES})
+
+    # add test to run JNIFoo
+    # add_test(NAME ${target}_example_as_test 
+    #     COMMAND ${Java_JAVA_EXECUTABLE}
+    #     -Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}
+    #     -cp ${_jarFile} simpleJava)
+
+    # Combination of what worked so far:
+    set(CMAKE_JNI_TARGET TRUE)
+    add_jar(simpleJava java/samples/Simple.java
+        ENTRY_POINT jitbuilder.release.java.samples.Simple)
+    
+    get_target_property(_jarFile simpleJava JAR_FILE)
+    get_target_property(_classDir simpleJava CLASSDIR)
+    set (_stubDir "${CMAKE_CURRENT_BINARY_DIR}")
+
+    include_directories(${JNI_INCLUDE_DIRS} ${_classDir} ${_stubDir})
+    add_library(jitbuilder_release_java_samples_Simple MODULE java/samples/jitbuilder_release_java_samples_Simple.cpp java/samples/jitbuilder_release_java_samples_Simple.h)
+    target_link_libraries(jitbuilder_release_java_samples_Simple ${JNI_LIBRARIES})
+
+    # add test to run JNIFoo
+    add_test(NAME simpleJava_example_as_test 
+        COMMAND ${Java_JAVA_EXECUTABLE}
         -Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}
-        -cp ${_jarFile} ${target})
+        -cp ${_jarFile} simpleJava)
 endmacro(create_jitbuilder_test_java)
 
 # source-only jar file
