@@ -7,6 +7,7 @@ public class MethodBuilder extends IlBuilder {
 
     public MethodBuilder(long impl) {
         super(impl);
+        impl_initializeFromImpl(impl);
     }
 
     public MethodBuilder(TypeDictionary types) {
@@ -17,7 +18,20 @@ public class MethodBuilder extends IlBuilder {
         return false;
     }
 
-    public MethodHandler compile() {
-        return new MethodHandler(0L);
+    public void DefineName(String name) {
+        impl_DefineName(name);
     }
+
+    public void DefineParameter(String name, IlType type) {
+        impl_DefineParameter(name, type);
+    }
+
+    public void DefineReturnType(IlType type) {
+        impl_DefineReturnType(type);
+    }
+
+    private native void impl_initializeFromImpl(long impl);
+    private native void impl_DefineName(String name);
+    private native void impl_DefineParameter(String name, IlType type);
+    private native void impl_DefineReturnType(IlType ilType);
 }

@@ -1,12 +1,6 @@
 package jitbuilder.release.java.include;
 
 public class IlType {
-    public static long _impl = 0L;
-
-    public IlType() {
-
-    }
-
     public IlType(long impl) {
         impl_initializeFromImpl(impl);
     }

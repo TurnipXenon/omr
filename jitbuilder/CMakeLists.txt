@@ -63,11 +63,6 @@ set(JITBUILDER_CPP_API_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/release/cpp/includ
 set(JITBUILDER_CPP_API_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}client/cpp)
 set(JITBUILDER_API_DESCRIPTION ${CMAKE_CURRENT_SOURCE_DIR}/apigen/jitbuilder.api.json)
 
-set(JAVA_API_GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/apigen/javagen.py)
-set(JITBUILDER_JAVA_API_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/release/java/include)
-set(JITBUILDER_JAVA_API_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}client/java)
-set(JITBUILDER_JAVA_API_JNI_DIR ${CMAKE_CURRENT_BINARY_DIR}client/java)
-
 set(JITBUILDER_API_SOURCES
 	${JITBUILDER_CPP_API_SOURCE_DIR}/BytecodeBuilder.cpp
 	${JITBUILDER_CPP_API_SOURCE_DIR}/IlBuilder.cpp
@@ -82,22 +77,6 @@ set(JITBUILDER_API_SOURCES
 	${JITBUILDER_CPP_API_SOURCE_DIR}/VirtualMachineRegisterInStruct.cpp
 	${JITBUILDER_CPP_API_SOURCE_DIR}/VirtualMachineState.cpp
 	${JITBUILDER_CPP_API_SOURCE_DIR}/JitBuilder.cpp
-)
-
-set(JITBUILDER_JAVA_API_SOURCES
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/BytecodeBuilder.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/IlBuilder.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/IlType.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/IlValue.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/MethodBuilder.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/ThunkBuilder.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/TypeDictionary.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineOperandArray.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineOperandStack.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineRegister.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineRegisterInStruct.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineState.java
-	${JITBUILDER_JAVA_API_SOURCE_DIR}/JitBuilder.java
 )
 
 set(JITBUILDER_API_HEADERS
@@ -116,20 +95,37 @@ set(JITBUILDER_API_HEADERS
 	${JITBUILDER_CPP_API_HEADER_DIR}/JitBuilder.hpp
 )
 
-set(JITBUILDER_JAVA_API_HEADERS
-	${JITBUILDER_JAVA_API_HEADER_DIR}/BytecodeBuilder.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/IlBuilder.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/IlType.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/IlValue.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/MethodBuilder.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/ThunkBuilder.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/TypeDictionary.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/VirtualMachineOperandArray.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/VirtualMachineOperandStack.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/VirtualMachineRegister.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/VirtualMachineRegisterInStruct.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/VirtualMachineState.h
-	${JITBUILDER_JAVA_API_HEADER_DIR}/JitBuilder.h
+add_custom_command(
+	OUTPUT ${JITBUILDER_API_SOURCES} ${JITBUILDER_API_HEADERS}
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_CPP_API_SOURCE_DIR}
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_CPP_API_HEADER_DIR}
+	COMMAND ${PYTHON_EXECUTABLE} ${CPP_API_GENERATOR} ${JITBUILDER_API_DESCRIPTION} --sourcedir ${JITBUILDER_CPP_API_SOURCE_DIR} --headerdir ${JITBUILDER_CPP_API_HEADER_DIR}
+	DEPENDS ${CPP_API_GENERATOR} ${JITBUILDER_API_DESCRIPTION}
+	COMMENT "Running JitBuilder C++ API generator"
+)
+
+# JAVA API GENERATION
+
+set(JAVA_API_GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/apigen/javagen.py)
+# set(JITBUILDER_JAVA_API_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/release/java/include)
+set(JITBUILDER_JAVA_JNI_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}client/java)
+set(JITBUILDER_JAVA_API_SOURCE_DIR ${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org/eclipse/omr/jitbuilder)
+
+
+set(JITBUILDER_JAVA_API_SOURCES
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/BytecodeBuilder.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/IlBuilder.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/IlType.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/IlValue.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/MethodBuilder.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/ThunkBuilder.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/TypeDictionary.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineOperandArray.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineOperandStack.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineRegister.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineRegisterInStruct.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/VirtualMachineState.java
+	${JITBUILDER_JAVA_API_SOURCE_DIR}/JitBuilder.java
 )
 
 set(JITBUILDER_JAVA_JNI_SOURCES
@@ -148,41 +144,34 @@ set(JITBUILDER_JAVA_JNI_SOURCES
 	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/JitBuilder.cpp
 )
 
-set(JITBUILDER_JAVA_JNI_HEADER_FILES
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_BytecodeBuilder.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_IlBuilder.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_IlType.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_IlValue.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_MethodBuilder.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_ThunkBuilder.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_TypeDictionary.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_VirtualMachineOperandArray.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_VirtualMachineOperandStack.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_VirtualMachineRegister.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_VirtualMachineRegisterInStruct.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_VirtualMachineState.h
-	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/jitbuilder_release_java_include_JitBuilder.h
+set(JITBUILDER_JAVA_JNI_HEADERS
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_BytecodeBuilder.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_IlBuilder.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_IlType.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_IlValue.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_MethodBuilder.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_ThunkBuilder.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_TypeDictionary.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_VirtualMachineOperandArray.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_VirtualMachineOperandStack.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_VirtualMachineRegister.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_VirtualMachineRegisterInStruct.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_VirtualMachineState.h
+	${JITBUILDER_JAVA_JNI_SOURCE_DIR}/org_eclipse_omr_jitbuilder_JitBuilder.h
 )
 
-add_custom_command(
-	OUTPUT ${JITBUILDER_API_SOURCES} ${JITBUILDER_API_HEADERS}
-	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_CPP_API_SOURCE_DIR}
-	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_CPP_API_HEADER_DIR}
-	COMMAND ${PYTHON_EXECUTABLE} ${CPP_API_GENERATOR} ${JITBUILDER_API_DESCRIPTION} --sourcedir ${JITBUILDER_CPP_API_SOURCE_DIR} --headerdir ${JITBUILDER_CPP_API_HEADER_DIR}
-	DEPENDS ${CPP_API_GENERATOR} ${JITBUILDER_API_DESCRIPTION}
-	COMMENT "Running JitBuilder C++ API generator"
-)
 
 add_custom_command(
-	OUTPUT ${JITBUILDER_JAVA_API_SOURCES}
+	OUTPUT ${JITBUILDER_JAVA_API_SOURCES} {JITBUILDER_JAVA_JNI_SOURCES}
 	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_JAVA_API_SOURCE_DIR}
-	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_JAVA_API_HEADER_DIR}
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${JITBUILDER_JAVA_JNI_SOURCE_DIR}
 	COMMAND ${PYTHON_EXECUTABLE} ${JAVA_API_GENERATOR} ${JITBUILDER_API_DESCRIPTION} --sourcedir ${JITBUILDER_JAVA_API_SOURCE_DIR}
 	DEPENDS ${JAVA_API_GENERATOR} ${JITBUILDER_API_DESCRIPTION}
+	COMMENT "Running JitBuilder Java API generator"
 )
 
 add_custom_command(
-	OUTPUT ${JITBUILDER_JAVA_JNI_HEADER_FILES}
+	OUTPUT ${JITBUILDER_JAVA_JNI_HEADERS}
 	COMMAND javac --add-exports java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED -h ${JITBUILDER_JAVA_JNI_SOURCE_DIR} ${JITBUILDER_JAVA_API_SOURCE_DIR}/*.java
 	DEPENDS ${JITBUILDER_JAVA_API_SOURCES}
 	COMMENT "Generating JitBuilder Java API JNI headers"
@@ -191,8 +180,7 @@ add_custom_command(
 list(APPEND JITBUILDER_OBJECTS
 	${JITBUILDER_API_SOURCES}
 	${JITBUILDER_JAVA_API_SOURCES}
-	${JITBUILDER_JAVA_JNI_HEADER_FILES}
-	${JITBUILDER_JAVA_JNI_SOURCES}
+	${JITBUILDER_JAVA_JNI_HEADERS}
 )
 
 # Create jitbuilder library.

@@ -3,10 +3,11 @@ package jitbuilder.release.java.include;
 // import org.eclipse.omr.jitbuilder.IlBuilder;
 
 public class TypeDictionary {
-    public long _impl;
+    private long _impl;
 
     public TypeDictionary() {
-        // todo
+        _impl = 0L; // todo: should not be 0L
+        TypeDictionary.setClientObj(this, _impl);
     }
 
     public TypeDictionary(long implRet) {

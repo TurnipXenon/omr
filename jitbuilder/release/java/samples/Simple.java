@@ -1,22 +1,21 @@
-// package jitbuilder.release.java.samples;
+package jitbuilder.release.java.samples;
 
-// import jitbuilder.release.java.include.JitBuilder;
-// import jitbuilder.release.java.include.MethodBuilder;
-// import jitbuilder.release.java.include.MethodHandler;
-// import jitbuilder.release.java.include.TypeDictionary;
+import jitbuilder.release.java.include.JitBuilder;
+import jitbuilder.release.java.include.MethodBuilder;
+import jitbuilder.release.java.include.MethodHandler;
+import jitbuilder.release.java.include.TypeDictionary;
 
 public class Simple {
     static {
         System.loadLibrary("native");
     }
 
-    /*
     private static class SimpleMethod extends MethodBuilder {
         SimpleMethod(TypeDictionary types) {
             super(types);
-            // DefineName("increment");
-            // DefineParameter("value", Int32);
-            // DefineReturnType(Int32);
+            DefineName("increment");
+            DefineParameter("value", Int32);
+            DefineReturnType(Int32);
         }
     
         @Override
@@ -43,7 +42,7 @@ public class Simple {
 
         System.out.println("Step 3: compile method builder");
         SimpleMethod method = new SimpleMethod(types);
-        MethodHandler methodWrapper = method.compile();
+        MethodHandler methodWrapper = JitBuilder.compile(method);
 
         System.out.println("Step 4: invoke compiled code and print results");
         int v;
@@ -62,13 +61,4 @@ public class Simple {
         System.out.println("Step 5: shutdown JIT");
         JitBuilder.shutdownJit();
     }
-    */
-
-    // test out jni cmake
-    public static void main(String args[]) {
-        System.out.println("Testing in main");
-        test();
-    }
-
-    public native static void test();
 }
