@@ -1,4 +1,4 @@
-package jitbuilder.release.java.include;
+package java.include;
 
 public class VirtualMachineOperandStack {
     public long _impl;

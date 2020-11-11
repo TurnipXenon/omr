@@ -1,4 +1,4 @@
-package jitbuilder.release.java.include;
+package java.include;
 
 public class VirtualMachineState {
     public long _impl;

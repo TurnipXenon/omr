@@ -1,7 +1,9 @@
-package jitbuilder.release.java.include;
+package java.include;
 
 public class IlType {
-    public IlType(long impl) {
+    public long _impl;
+
+	public IlType(long impl) {
         impl_initializeFromImpl(impl);
     }
 

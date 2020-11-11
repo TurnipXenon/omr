@@ -1,9 +1,9 @@
-package jitbuilder.release.java.samples;
+package java.samples;
 
-import jitbuilder.release.java.include.JitBuilder;
-import jitbuilder.release.java.include.MethodBuilder;
-import jitbuilder.release.java.include.MethodHandler;
-import jitbuilder.release.java.include.TypeDictionary;
+import java.include.JitBuilder;
+import java.include.MethodBuilder;
+import java.include.MethodHandler;
+import java.include.TypeDictionary;
 
 public class Simple {
     static {
