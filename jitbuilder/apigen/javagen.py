@@ -341,19 +341,36 @@ class JavaGenerator:
         class_desc = ctor_desc.owning_class()
         parms = self.generate_parm_list(ctor_desc.parameters())
         full_name = self.get_class_name(class_desc)
-        inherit = ": {parent}((void *)NULL)".format(parent=self.get_class_name(class_desc.parent())) if class_desc.has_parent() else ""
-
-        writer.write("public {name}({parms}){inherit} {{\n".format(cname=full_name, name=name, parms=parms, inherit=inherit))
+        
+        writer.write("public {name}({parms}) {{\n".format(cname=full_name, name=name, parms=parms))
         writer.indent()
+
+        # if class has parent, invoke super constructor
+        if class_desc.has_parent():
+            if parms != "":
+                writer.write("super(_impl);\n")
+            else:
+                writer.write("super(impl);\n")
+
         args = self.generate_arg_list(ctor_desc.parameters())
         writer.write("_impl = new{name}({args});\n".format(name=name, args=args))
         writer.write("impl_initializeFromImpl(_impl);\n")
+
         for parm in ctor_desc.parameters():
             self.write_arg_return(writer, parm)
 
         containing_classes = class_desc.containing_classes()
         containing_class = containing_classes[0] if len(containing_classes) > 0 else ""
-        writer.write("{containing}.set_{containing}_{name}_ClientObj(this, _impl);\n".format(containing=containing_class,name=name))
+        outer_class_prefix = "" if containing_class == "" else "{cc}.".format(cc=containing_class)
+
+        extended_func_name = ""
+        if len(containing_classes) > 0:
+            extended_func_name = "{name}_".format(name=name)
+            for c in containing_classes:
+                extended_func_name = "{c_name}_{previous}".format(c_name=c, previous=extended_func_name)
+            extended_func_name = "_" + extended_func_name
+
+        writer.write("{ocp}set{efn}ClientObj(this, _impl);\n".format(ocp=outer_class_prefix, efn=extended_func_name, name=name))
         # writer.write("initializeFromImpl({});\n".format(self.to_opaque_cast("impl",class_desc)))
         writer.outdent()
         writer.write("}\n")
@@ -482,14 +499,28 @@ class JavaGenerator:
 
         writer.outdent()
         writer.write("}\n\n")
+    
+    def get_parent_class_name(self, class_desc):
+        if class_desc.has_parent():
+            return class_desc.parent().name()
+        else:
+            return None
+
+    def format_extension(self, class_desc):
+        ext = self.get_parent_class_name(class_desc)
+        if ext is not None:
+            return "extends {ext}".format(ext=ext)
+        else:
+            return ""
 
     def write_class_impl(self, writer, class_desc):
         """Write the implementation of a client API class."""
 
         name = class_desc.name()
         full_name = self.get_class_name(class_desc)
+        extension = self.format_extension(class_desc)
 
-        writer.write("\npublic class {class_name}\n{{\n".format(class_name=name))
+        writer.write("\npublic class {class_name} {extension}\n{{\n".format(class_name=name, extension=extension))
         writer.indent()
 
         # write source for inner classes first (Allan)
@@ -497,13 +528,16 @@ class JavaGenerator:
             self.write_class_impl(writer, c)
             writer.write("\n")
         
+        # write default constructor
         writer.write("\n{class_name}(long impl) {{\n".format(class_name=name))
         writer.indent()
+        if class_desc.has_parent():
+            writer.write("super(impl);\n")
         writer.write("impl_initializeFromImpl(impl);\n")
         writer.outdent()
         writer.write("}\n\n")
 
-        # write constructor definitions
+        # write other constructor definitions
         for ctor in class_desc.constructors():
             self.write_ctor_impl(writer, ctor)
         writer.write("\n")

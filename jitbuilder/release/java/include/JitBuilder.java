@@ -68,7 +68,8 @@ public class JitBuilder {
     }
 
 	public static MethodHandler compile(MethodBuilder method) {
-		impl_compile(method);
+        impl_compile(method);
+        return null; // todo
     }
     
     private native static MethodHandler impl_compile(MethodBuilder methodBuilder);

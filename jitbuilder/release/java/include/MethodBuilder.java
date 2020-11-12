@@ -3,15 +3,15 @@ package java.include;
 // import org.eclipse.omr.jitbuilder.IlBuilder;
 
 public class MethodBuilder extends IlBuilder {
-    public long _impl;
-
-    public MethodBuilder(long impl) {
+    MethodBuilder(long impl) {
         super(impl);
         impl_initializeFromImpl(impl);
     }
 
-    public MethodBuilder(TypeDictionary types) {
-        super(0L);
+    public MethodBuilder(TypeDictionary dict) {
+        super(dict != null ? dict._impl : 0L);
+        impl_initializeFromImpl(_impl);
+        setClientObj(this, _impl);
     }
 
     public boolean buildIL() {
@@ -29,6 +29,8 @@ public class MethodBuilder extends IlBuilder {
     public void DefineReturnType(IlType type) {
         impl_DefineReturnType(type);
     }
+
+    public long _impl;
 
     private native void impl_initializeFromImpl(long impl);
     private native void impl_DefineName(String name);
