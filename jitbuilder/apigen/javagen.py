@@ -151,6 +151,7 @@ class JavaGenerator:
         , "Int64", "Float", "Double", "Address", "VectorInt8"
         , "VectorInt16", "VectorInt32", "VectorInt64", "VectorFloat"
         , "VectorDouble", "Word")
+        self.simple_java_types = ("long", "String", "int", "long[]")
 
         # List of files to be included in the client API implementation.
         self.impl_include_files = self.gen_api_impl_includes(api.classes(), headerdir)
@@ -260,7 +261,7 @@ class JavaGenerator:
         """
         return self.to_impl_cast(t.as_class(), "({v} != null ? {v}._impl : 0L)".format(v=v)) if t.is_class() else v
 
-    def generate_parm(self, parm_desc, namespace="", is_client=True):
+    def generate_parm(self, parm_desc, namespace="", is_client=True, simplified=False):
         """
         Produces a parameter declaration from a given parameter description.
         The parameter declaration is usable in a function declaration.
@@ -269,16 +270,18 @@ class JavaGenerator:
         t = parm_desc.type()
         t = self.get_client_type(t, namespace)
         t = t.strip() # todo(Allan): investigate better ways
+        if simplified and t not in self.simple_java_types:
+            t = "long"
         b = "[]" if parm_desc.can_be_vararg() else ""
         return fmt.format(t=t,n=parm_desc.name(),b=b)
 
-    def generate_parm_list(self, parms_desc, namespace="", is_client=True):
+    def generate_parm_list(self, parms_desc, namespace="", is_client=True, simplified=False):
         """
         Produces a stringified comma seperated list of parameter
         declarations from a list of parameter descriptions. The list
         is usable as the parameter listing of a function declaration.
         """
-        return ", ".join([ self.generate_parm(p, namespace=namespace, is_client=is_client) for p in parms_desc ])
+        return ", ".join([ self.generate_parm(p, namespace=namespace, is_client=is_client, simplified=simplified) for p in parms_desc ])
 
     def generate_vararg_parm_list(self, parms_desc):
         """
@@ -346,14 +349,14 @@ class JavaGenerator:
         writer.indent()
 
         # if class has parent, invoke super constructor
+        args = self.generate_arg_list(ctor_desc.parameters())
         if class_desc.has_parent():
             if parms != "":
-                writer.write("super(_impl);\n")
+                writer.write("super(new{name}({args});\n".format(name=name, args=args))
             else:
                 writer.write("super(impl);\n")
+                writer.write("_impl = new{name}({args});\n".format(name=name, args=args))
 
-        args = self.generate_arg_list(ctor_desc.parameters())
-        writer.write("_impl = new{name}({args});\n".format(name=name, args=args))
         writer.write("impl_initializeFromImpl(_impl);\n")
 
         for parm in ctor_desc.parameters():
@@ -492,7 +495,7 @@ class JavaGenerator:
                 writer.write("}\n")
                 writer.write("return clientRet;\n")
             else:
-                writer.write("auto ret = " + impl_call + ";\n")
+                writer.write("long ret = " + impl_call + ";\n")
                 for parm in desc.parameters():
                     self.write_arg_return(writer, parm)
                 writer.write("return ret;\n")
@@ -592,7 +595,21 @@ private native void impl_initializeFromImpl(long impl);\n""")
             
             writer.write("native static {name} getClientObj(long implObj);\n".format(name=name))
             writer.write("native static void setClientObj(IlBuilder clientObj, long implObj);\n")
+
+            # Handle constructor-related native functions
+            # Naive way: find the most number of parameters
+            # Then create one for each count???
+            max_param_count = 0
+            for ctor in class_desc.constructors():
+                max_param_count = max(max_param_count, len(ctor.parameters()))
             
+            for i in range(max_param_count):
+                ctor_parms_list = []
+                for j in range(i+1):
+                    ctor_parms_list.append("long impl{j}".format(j=(j+1)))
+                ctor_parms = ", ".join(ctor_parms_list)
+                writer.write("native static long new{name}({ctor_parms});\n".format(name=name, ctor_parms=ctor_parms))
+
             # todo(Allan): improve by handling deeper inner classes
             replacements = (("IlValue", "long"),("IlType","long"), ("IlBuilder", "long"))
             for inner_class in class_desc.inner_classes():
@@ -603,7 +620,7 @@ private native void impl_initializeFromImpl(long impl);\n""")
             
             for s in class_desc.services():
                 param_is_in_out = False
-                parms = self.generate_parm_list(s.parameters())
+                parms = self.generate_parm_list(s.parameters(), simplified=False)
 
                 # remove duplicates
                 current_signature = "{name}({parms})".format(name=s.name(), parms=parms)

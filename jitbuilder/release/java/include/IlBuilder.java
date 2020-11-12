@@ -1227,35 +1227,35 @@ public class IlBuilder {
 
     private native void impl_DoWhileLoopWithContinue(String exitCondition, long body, long continueBuilder);
 
-    private native void impl_Goto(long b);
+    protected native void impl_Goto(long b);
 
     private native long impl_MakeCondition(long conditionBuilder, long conditionValue);
 
     private native void impl_IfAndWithArgArray(long allTrueBuilder, long anyFalseBuilder, int numTerms, long[] terms);
 
-    private native void impl_IfCmpEqual(long target, long left, long right);
+    protected native void impl_IfCmpEqual(long target, long left, long right);
 
-    private native void impl_IfCmpLessOrEqual(long target, long left, long right);
+    protected native void impl_IfCmpLessOrEqual(long target, long left, long right);
 
-    private native void impl_IfCmpLessThan(long target, long left, long right);
+    protected native void impl_IfCmpLessThan(long target, long left, long right);
 
-    private native void impl_IfCmpGreaterOrEqual(long target, long left, long right);
+    protected native void impl_IfCmpGreaterOrEqual(long target, long left, long right);
 
-    private native void impl_IfCmpGreaterThan(long target, long left, long right);
+    protected native void impl_IfCmpGreaterThan(long target, long left, long right);
 
-    private native void impl_IfCmpNotEqual(long target, long left, long right);
+    protected native void impl_IfCmpNotEqual(long target, long left, long right);
 
-    private native void impl_IfCmpUnsignedLessOrEqual(long target, long left, long right);
+    protected native void impl_IfCmpUnsignedLessOrEqual(long target, long left, long right);
 
-    private native void impl_IfCmpUnsignedLessThan(long target, long left, long right);
+    protected native void impl_IfCmpUnsignedLessThan(long target, long left, long right);
 
-    private native void impl_IfCmpUnsignedGreaterOrEqual(long target, long left, long right);
+    protected native void impl_IfCmpUnsignedGreaterOrEqual(long target, long left, long right);
 
-    private native void impl_IfCmpUnsignedGreaterThan(long target, long left, long right);
+    protected native void impl_IfCmpUnsignedGreaterThan(long target, long left, long right);
 
-    private native void impl_IfCmpEqualZero(long target, long condition);
+    protected native void impl_IfCmpEqualZero(long target, long condition);
 
-    private native void impl_IfCmpNotEqualZero(long target, long condition);
+    protected native void impl_IfCmpNotEqualZero(long target, long condition);
 
     private native void impl_IfOrWithArgArray(long anyTrueBuilder, long allFalseBuilder, int numTerms, long[] terms);
 
