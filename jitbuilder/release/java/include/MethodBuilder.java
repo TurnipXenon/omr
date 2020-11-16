@@ -11,20 +11,23 @@ public class MethodBuilder extends IlBuilder
     }
 
     public MethodBuilder(TypeDictionary dict) {
-        super(newMethodBuilder((dict != null ? dict._impl : 0L));
+        super(newMethodBuilder((dict != null ? dict._impl : 0L)));
         impl_initializeFromImpl(_impl);
         setClientObj(this, _impl);
     }
+
     public MethodBuilder(TypeDictionary dict, VirtualMachineState vmState) {
         super(newMethodBuilder((dict != null ? dict._impl : 0L), (vmState != null ? vmState._impl : 0L));
         impl_initializeFromImpl(_impl);
         setClientObj(this, _impl);
     }
+
     public MethodBuilder(MethodBuilder callerMB) {
         super(newMethodBuilder((callerMB != null ? callerMB._impl : 0L));
         impl_initializeFromImpl(_impl);
         setClientObj(this, _impl);
     }
+    
     public MethodBuilder(MethodBuilder callerMB, VirtualMachineState vmState) {
         super(newMethodBuilder((callerMB != null ? callerMB._impl : 0L), (vmState != null ? vmState._impl : 0L));
         impl_initializeFromImpl(_impl);
